@@ -1,3 +1,26 @@
-.zig-cache/
+# Zig
+zig-cache/
 zig-out/
+.zig-cache/
+
+# Build artifacts
 *.o
+*.a
+*.so
+*.dylib
+*.dll
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+test-results/
+coverage/

@@ -1,0 +1,167 @@
+const std = @import("std");
+const c = @import("c.zig");
+const Error = @import("error.zig").Error;
+const fromStatusCode = @import("error.zig").fromStatusCode;
+const types = @import("types.zig");
+const operations = @import("operations.zig");
+
+/// Couchbase client
+pub const Client = struct {
+    instance: *c.lcb_INSTANCE,
+    allocator: std.mem.Allocator,
+
+    /// Connection string options
+    pub const ConnectOptions = struct {
+        connection_string: []const u8,
+        username: ?[]const u8 = null,
+        password: ?[]const u8 = null,
+        bucket: ?[]const u8 = null,
+        timeout_ms: u32 = 10000,
+    };
+
+    /// Create and connect to a Couchbase cluster
+    pub fn connect(allocator: std.mem.Allocator, options: ConnectOptions) Error!Client {
+        var create_opts: ?*c.lcb_CREATEOPTS = null;
+        _ = c.lcb_createopts_create(&create_opts, c.LCB_TYPE_BUCKET);
+        defer _ = c.lcb_createopts_destroy(create_opts);
+
+        // Build connection string with bucket if provided
+        // NOTE: libcouchbase holds references to these strings, so we must keep them alive
+        // until after lcb_create() is called
+        const conn_str_z = if (options.bucket) |bucket|
+            try std.fmt.allocPrintZ(allocator, "{s}/{s}", .{ options.connection_string, bucket })
+        else
+            try allocator.dupeZ(u8, options.connection_string);
+        defer allocator.free(conn_str_z);
+        
+        _ = c.lcb_createopts_connstr(create_opts, conn_str_z.ptr, conn_str_z.len);
+
+        // Set credentials if provided
+        // NOTE: These strings must also stay alive until after lcb_create()
+        const username_z = if (options.username) |username|
+            try allocator.dupeZ(u8, username)
+        else
+            null;
+        defer if (username_z) |uz| allocator.free(uz);
+        
+        const password_z = if (options.password) |password|
+            try allocator.dupeZ(u8, password)
+        else
+            null;
+        defer if (password_z) |pz| allocator.free(pz);
+        
+        if (username_z) |uz| {
+            const pz = password_z orelse "";
+            _ = c.lcb_createopts_credentials(create_opts, uz.ptr, uz.len, pz.ptr, pz.len);
+        }
+
+        // Create instance - now all strings are still alive
+        var instance: ?*c.lcb_INSTANCE = null;
+        var rc = c.lcb_create(&instance, create_opts);
+        try fromStatusCode(rc);
+        // After this point, libcouchbase has copied the strings, so we can free them
+
+        const inst = instance orelse return error.ConnectionFailed;
+
+        // Set timeout
+        var timeout_ms = options.timeout_ms;
+        _ = c.lcb_cntl(inst, c.LCB_CNTL_SET, c.LCB_CNTL_CONFIGURATION_TIMEOUT, &timeout_ms);
+
+        // Connect
+        rc = c.lcb_connect(inst);
+        try fromStatusCode(rc);
+
+        // Wait for connection
+        rc = c.lcb_wait(inst, 0);
+        try fromStatusCode(rc);
+
+        // Get bootstrap status
+        rc = c.lcb_get_bootstrap_status(inst);
+        try fromStatusCode(rc);
+
+        return Client{
+            .instance = inst,
+            .allocator = allocator,
+        };
+    }
+
+    /// Disconnect and cleanup
+    pub fn disconnect(self: *Client) void {
+        c.lcb_destroy(self.instance);
+    }
+
+    /// Get a document by key
+    pub fn get(self: *Client, key: []const u8) Error!operations.GetResult {
+        return operations.get(self, key);
+    }
+
+    /// Get a document from replica
+    pub fn getFromReplica(self: *Client, key: []const u8, mode: types.ReplicaMode) Error!operations.GetResult {
+        return operations.getFromReplica(self, key, mode);
+    }
+
+    /// Upsert a document
+    pub fn upsert(self: *Client, key: []const u8, value: []const u8, options: operations.StoreOptions) Error!operations.MutationResult {
+        return operations.store(self, key, value, .upsert, options);
+    }
+
+    /// Insert a document (fails if exists)
+    pub fn insert(self: *Client, key: []const u8, value: []const u8, options: operations.StoreOptions) Error!operations.MutationResult {
+        return operations.store(self, key, value, .insert, options);
+    }
+
+    /// Replace a document (fails if doesn't exist)
+    pub fn replace(self: *Client, key: []const u8, value: []const u8, options: operations.StoreOptions) Error!operations.MutationResult {
+        return operations.store(self, key, value, .replace, options);
+    }
+
+    /// Remove a document
+    pub fn remove(self: *Client, key: []const u8, options: operations.RemoveOptions) Error!operations.MutationResult {
+        return operations.remove(self, key, options);
+    }
+
+    /// Increment a counter
+    pub fn increment(self: *Client, key: []const u8, delta: i64, options: operations.CounterOptions) Error!operations.CounterResult {
+        return operations.counter(self, key, delta, options);
+    }
+
+    /// Decrement a counter
+    pub fn decrement(self: *Client, key: []const u8, delta: i64, options: operations.CounterOptions) Error!operations.CounterResult {
+        return operations.counter(self, key, -delta, options);
+    }
+
+    /// Touch a document (update expiration)
+    pub fn touch(self: *Client, key: []const u8, expiry: u32) Error!operations.MutationResult {
+        return operations.touch(self, key, expiry);
+    }
+
+    /// Unlock a locked document
+    pub fn unlock(self: *Client, key: []const u8, cas: u64) Error!void {
+        return operations.unlock(self, key, cas);
+    }
+
+    /// Execute a N1QL query
+    pub fn query(self: *Client, allocator: std.mem.Allocator, statement: []const u8, options: operations.QueryOptions) Error!operations.QueryResult {
+        return operations.query(self, allocator, statement, options);
+    }
+
+    /// Execute subdocument lookup
+    pub fn lookupIn(self: *Client, allocator: std.mem.Allocator, key: []const u8, specs: []const operations.SubdocSpec) Error!operations.SubdocResult {
+        return operations.lookupIn(self, allocator, key, specs);
+    }
+
+    /// Execute subdocument mutation
+    pub fn mutateIn(self: *Client, allocator: std.mem.Allocator, key: []const u8, specs: []const operations.SubdocSpec, options: operations.SubdocOptions) Error!operations.SubdocResult {
+        return operations.mutateIn(self, allocator, key, specs, options);
+    }
+
+    /// Ping all services
+    pub fn ping(self: *Client, allocator: std.mem.Allocator) Error!operations.PingResult {
+        return operations.ping(self, allocator);
+    }
+
+    /// Get diagnostics
+    pub fn diagnostics(self: *Client, allocator: std.mem.Allocator) Error!operations.DiagnosticsResult {
+        return operations.diagnostics(self, allocator);
+    }
+};

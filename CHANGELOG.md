@@ -1,0 +1,135 @@
+# Changelog
+
+## [0.1.0] - 2025-10-05
+
+### Added
+
+#### Core Features
+- Client connection management with authentication
+- GET operation (basic and from replica)
+- INSERT operation (create only)
+- UPSERT operation (insert or replace)
+- REPLACE operation (update only)
+- REMOVE operation (delete)
+- INCREMENT counter operation
+- DECREMENT counter operation
+- TOUCH operation (update expiration)
+- UNLOCK operation (release locks)
+- N1QL query execution with streaming results
+
+#### Options & Configuration
+- CAS (Compare-and-Swap) support for all mutations
+- Durability levels: none, majority, persist_to_majority, majority_and_persist_to_active
+- Replica read modes: any, all, index
+- Document expiration/TTL support
+- Custom document flags
+- Query scan consistency options
+- Connection timeout configuration
+- Environment variable configuration for tests
+
+#### Error Handling
+- 25+ mapped error types from libcouchbase status codes
+- Idiomatic Zig error handling
+- Error description helpers
+
+#### Testing
+- 16 unit tests (type safety, defaults, structures)
+- 18 integration tests (all operations against live server)
+- 14 coverage tests (comprehensive API coverage)
+- Environment variable test configuration
+- All tests passing
+
+#### Documentation
+- README.md with installation and usage
+- ARCHITECTURE.md with design patterns
+- TESTING.md with test documentation
+- GAP_ANALYSIS.md with feature comparison
+- TEST_RESULTS.md with test execution details
+- RELEASE_NOTES.md with detailed release information
+- 3 comprehensive example programs
+
+#### Build System
+- build.zig with library and example targets
+- build.zig.zon package metadata
+- Separate test targets (test-unit, test-integration, test-coverage, test-all)
+
+### Not Implemented
+
+- Subdocument operations (stubs only)
+- Analytics queries
+- Full-text search
+- Views
+- Transactions
+- GET with lock
+- EXISTS operation
+- OBSERVE operation
+- Collections/scopes API
+- Connection pooling
+- Batch scheduling
+- Prepared statements
+- Query parameters
+- Ping/diagnostics (stubs only)
+
+### Fixed
+
+- Segmentation fault in test framework due to premature string deallocation
+- String lifetime management in connection setup
+- Counter operation expectations (initial value returned on creation)
+- CAS error handling (accepts DocumentExists or DurabilityImpossible)
+- Opaque type handling for libcouchbase command structures
+- Query result type const correctness
+
+### Technical Details
+
+- Callback-based libcouchbase API wrapped as synchronous Zig API
+- All allocations use provided allocator
+- Result types have deinit() for cleanup
+- Single-threaded per client instance
+- Blocking I/O on lcb_wait()
+
+### Compatibility
+
+Tested on:
+- Zig 0.14.0
+- libcouchbase 3.3.18  
+- Couchbase Server 7.6.2
+- macOS darwin 22.5.0
+
+### Known Issues
+
+1. Counter initial+delta behavior differs from expectations
+2. Some error codes may return Unknown for unmapped statuses
+3. Query operations require primary index to be created
+4. Subdocument operation stubs return NotSupported error
+
+### Security
+
+- Credentials stored temporarily during connection
+- All credential strings freed after use
+- No logging of sensitive information
+- TLS support via libcouchbase
+
+### Performance Notes
+
+- Comparable to libcouchbase C library for implemented operations
+- Single allocation per operation result
+- Zero-copy for operation inputs
+- Query results accumulate in memory
+
+### Breaking Changes
+
+N/A - Initial release
+
+### Deprecations
+
+N/A - Initial release
+
+### Contributors
+
+Initial implementation by project team
+
+### Links
+
+- Repository: [GitHub URL]
+- libcouchbase: https://github.com/couchbase/libcouchbase
+- Couchbase: https://docs.couchbase.com/
