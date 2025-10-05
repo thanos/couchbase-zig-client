@@ -233,14 +233,14 @@ Tests require a running Couchbase Server instance. Configure via environment var
 ```bash
 export COUCHBASE_HOST="couchbase://127.0.0.1"  # or any connection string
 export COUCHBASE_USER="tester"                  # default: tester
-export COUCHBASE_PASSWORD="csfb2010"            # default: csfb2010
+export COUCHBASE_PASSWORD="password"            # default: password
 export COUCHBASE_BUCKET="default"               # default: default
 ```
 
 Defaults (if env vars not set):
 - Host: couchbase://127.0.0.1
 - User: tester
-- Password: csfb2010
+- Password: password
 - Bucket: default
 
 ### Setup Couchbase for Testing
@@ -256,7 +256,7 @@ docker run -d --name couchbase \
 Then configure it:
 1. Go to http://localhost:8091
 2. Setup cluster (click "Setup New Cluster")
-3. Create admin user (can use tester/csfb2010)
+3. Create admin user (can use tester/password)
 4. Create a bucket named "default" in the Buckets section
 5. Grant the user full access to the bucket
 
@@ -269,7 +269,7 @@ sleep 20
 docker exec couchbase couchbase-cli cluster-init \
   --cluster localhost \
   --cluster-username tester \
-  --cluster-password csfb2010 \
+  --cluster-password password \
   --services data,index,query \
   --cluster-ramsize 512 \
   --cluster-index-ramsize 256
@@ -278,7 +278,7 @@ docker exec couchbase couchbase-cli cluster-init \
 docker exec couchbase couchbase-cli bucket-create \
   --cluster localhost \
   --username tester \
-  --password csfb2010 \
+  --password password \
   --bucket default \
   --bucket-type couchbase \
   --bucket-ramsize 256
