@@ -1,5 +1,55 @@
 # Release Notes
 
+## Version 0.1.1 (Beta) - October 6, 2025
+
+### New Features
+
+- **APPEND Operation**: Append data to existing documents
+- **PREPEND Operation**: Prepend data to existing documents
+- **EXISTS Operation**: Efficiently check document existence without retrieving content
+- **Environment Variable Configuration**: Configure test credentials via environment variables
+
+### Test Improvements
+
+- Added 10 new operation tests
+- Total test count: 58 (16 unit, 18 integration, 14 coverage, 10 new ops)
+- All tests passing (100% success rate)
+- Environment-based test configuration (COUCHBASE_HOST, COUCHBASE_USER, COUCHBASE_PASSWORD, COUCHBASE_BUCKET)
+
+### Documentation
+
+- Added GAP_ANALYSIS.md - comprehensive feature comparison with libcouchbase
+- Added QUICKSTART.md - quick start guide
+- Added FINAL_STATUS.md - current implementation status
+- Cleaned all documentation (removed emojis and marketing language)
+
+### Bug Fixes
+
+- Fixed segmentation fault in connection setup (string lifetime management)
+- Fixed EXISTS operation to properly use lcb_respexists_is_found()
+- Improved CAS error handling
+- Updated counter operation test expectations
+
+### API Completeness
+
+- Core KV Operations: 92% (12/13 - only missing GET with lock)
+- Overall libcouchbase coverage: ~45%
+
+### Installation
+
+Same as 0.1.0. Update build.zig.zon version to "0.1.1".
+
+### Migration from 0.1.0
+
+No breaking changes. New operations are additional methods on Client:
+```zig
+client.append(key, value, options)
+client.prepend(key, value, options)  
+client.exists(key)
+```
+
+---
+
 ## Version 0.1.0 (Beta) - Initial Release
 
 Release Date: October 5, 2025

@@ -324,8 +324,9 @@ See TESTING.md and GAP_ANALYSIS.md for detailed testing documentation and featur
 Beta. API may change before 1.0 release.
 
 Implemented:
-- Connection management
-- KV operations (get, insert, upsert, replace, remove)
+- Connection management with env vars
+- KV operations (get, insert, upsert, replace, remove, append, prepend)
+- EXISTS operation
 - Counter operations
 - Touch and unlock
 - CAS support
@@ -333,6 +334,7 @@ Implemented:
 - N1QL queries
 - Replica reads
 - Error handling
+- 58 comprehensive tests
 
 Not implemented:
 - Subdocument operations (partial)

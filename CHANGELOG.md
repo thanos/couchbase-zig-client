@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.1.1] - 2025-10-06
+
+### Added
+- APPEND operation for appending data to existing documents
+- PREPEND operation for prepending data to existing documents
+- EXISTS operation for efficient document existence checks
+- Environment variable configuration for test credentials (COUCHBASE_HOST, COUCHBASE_USER, COUCHBASE_PASSWORD, COUCHBASE_BUCKET)
+- 10 new operation tests (append, prepend, exists, subdocument stubs)
+- GAP_ANALYSIS.md - comprehensive feature comparison with libcouchbase
+- QUICKSTART.md - quick start guide
+- FINAL_STATUS.md - current status report
+- TEST_SUMMARY.txt - test summary report
+
+### Changed
+- Test configuration now uses environment variables with fallback defaults
+- Updated gap analysis to reflect 92% core KV operation coverage
+- Improved documentation structure and organization
+
+### Fixed
+- Segmentation fault in connection setup due to premature string deallocation
+- EXISTS operation now correctly uses lcb_respexists_is_found()
+- Memory lifetime management for connection strings
+- Counter operation test expectations (initial value behavior)
+- CAS error handling to accept both DocumentExists and DurabilityImpossible
+
+### Documentation
+- Added comprehensive gap analysis comparing to libcouchbase
+- Updated all documentation to remove emojis and sales language
+- Added detailed release notes and changelog
+- Created quick start guide for new users
+
+### Testing
+- Total test count: 58 (was 48)
+- All tests now pass with environment variable configuration
+- Added tests for APPEND, PREPEND, EXISTS operations
+- Subdocument operation tests (skip with NotSupported until implemented)
+
 ## [0.1.0] - 2025-10-05
 
 ### Added

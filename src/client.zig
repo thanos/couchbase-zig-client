@@ -120,6 +120,21 @@ pub const Client = struct {
         return operations.remove(self, key, options);
     }
 
+    /// Append data to an existing document
+    pub fn append(self: *Client, key: []const u8, value: []const u8, options: operations.StoreOptions) Error!operations.MutationResult {
+        return operations.store(self, key, value, .append, options);
+    }
+
+    /// Prepend data to an existing document
+    pub fn prepend(self: *Client, key: []const u8, value: []const u8, options: operations.StoreOptions) Error!operations.MutationResult {
+        return operations.store(self, key, value, .prepend, options);
+    }
+
+    /// Check if a document exists
+    pub fn exists(self: *Client, key: []const u8) Error!bool {
+        return operations.exists(self, key);
+    }
+
     /// Increment a counter
     pub fn increment(self: *Client, key: []const u8, delta: i64, options: operations.CounterOptions) Error!operations.CounterResult {
         return operations.counter(self, key, delta, options);

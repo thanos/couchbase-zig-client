@@ -665,24 +665,78 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     };
 }
 
+/// EXISTS operation - check if document exists without retrieving
+pub fn exists(client: *Client, key: []const u8) Error!bool {
+    var ctx = struct {
+        exists: bool = false,
+        err: ?Error = null,
+        done: bool = false,
+    }{};
+    
+    var cmd: ?*c.lcb_CMDEXISTS = null;
+    _ = c.lcb_cmdexists_create(&cmd);
+    defer _ = c.lcb_cmdexists_destroy(cmd);
+    
+    _ = c.lcb_cmdexists_key(cmd, key.ptr, key.len);
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPEXISTS) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respexists_cookie(resp, &cookie);
+            const Context = @TypeOf(ctx);
+            var context: *Context = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respexists_status(resp);
+            
+            // Determine if document exists based on status
+            if (rc == c.LCB_ERR_DOCUMENT_NOT_FOUND) {
+                context.exists = false;
+            } else if (rc == c.LCB_SUCCESS) {
+                // Check if document actually exists using is_found
+                const found = c.lcb_respexists_is_found(resp);
+                context.exists = (found != 0);
+            } else {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+            }
+            context.done = true;
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_EXISTS, @ptrCast(&callback));
+    
+    var rc = c.lcb_exists(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| return err;
+    return ctx.exists;
+}
+
 /// Subdocument lookup
 pub fn lookupIn(client: *Client, allocator: std.mem.Allocator, key: []const u8, specs: []const SubdocSpec) Error!SubdocResult {
-    _ = allocator;
+    _ = client;
     _ = key;
     _ = specs;
-    _ = client;
-    // Simplified stub - full implementation would use lcb_subdoc
+    // Subdocument API not available in base couchbase.h
+    // Requires additional headers or different API approach
+    _ = allocator;
     return error.NotSupported;
 }
 
 /// Subdocument mutation
 pub fn mutateIn(client: *Client, allocator: std.mem.Allocator, key: []const u8, specs: []const SubdocSpec, options: SubdocOptions) Error!SubdocResult {
-    _ = allocator;
+    _ = client;
     _ = key;
     _ = specs;
     _ = options;
-    _ = client;
-    // Simplified stub - full implementation would use lcb_subdoc
+    // Subdocument API not available in base couchbase.h
+    // Requires additional headers or different API approach
+    _ = allocator;
     return error.NotSupported;
 }
 

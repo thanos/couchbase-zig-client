@@ -24,7 +24,7 @@ Based on the [libcouchbase repository](https://github.com/couchbase/libcouchbase
 | TOUCH | [YES] | [YES] | Complete |
 | UNLOCK | [YES] | [YES] | Complete |
 | OBSERVE | [YES] | [NO] | Missing |
-| EXISTS | [YES] | [NO] | Missing |
+| EXISTS | [YES] | [YES] | Complete |
 
 ### 2. Subdocument Operations
 
@@ -295,7 +295,7 @@ libcouchbase C library includes extensive tests for:
 
 ### Overall Coverage
 
-- **Core KV Operations**: 85% (11/13 operations)
+- **Core KV Operations**: 92% (12/13 operations)
 - **Query Operations**: 20% (1/5 operations)
 - **Subdocument Operations**: 0% (0/12 operations)
 - **Durability Features**: 70% (sync durability only)
@@ -427,12 +427,14 @@ libcouchbase C library includes extensive tests for:
 
 ### Strengths
 
-- [YES] Core KV operations fully implemented and tested
-- [YES] Query support (N1QL)
-- [YES] Proper error handling
-- [YES] Idiomatic Zig API
-- [YES] Memory safe
-- [YES] Good test coverage for implemented features
+- Core KV operations fully implemented and tested
+- APPEND, PREPEND, EXISTS operations
+- Query support (N1QL)
+- Proper error handling
+- Idiomatic Zig API
+- Memory safe
+- Environment variable configuration
+- Comprehensive test coverage (58 tests)
 
 ### Gaps
 
@@ -449,7 +451,7 @@ libcouchbase C library includes extensive tests for:
 
 ### Estimated Completion
 
-- **Current**: ~40% of libcouchbase functionality
+- **Current**: ~45% of libcouchbase functionality
 - **Core Operations**: ~85% complete
 - **Advanced Features**: ~15% complete
 
