@@ -201,8 +201,8 @@ const result = client.get("doc-id") catch |err| switch (err) {
 - `touch(key, expiry)` - Update expiration
 - `unlock(key, cas)` - Unlock document
 - `query(allocator, statement, options)` - Execute N1QL query
-- `lookupIn(allocator, key, specs)` - Subdocument lookup (stub)
-- `mutateIn(allocator, key, specs, options)` - Subdocument mutation (stub)
+- `lookupIn(allocator, key, specs)` - Subdocument lookup
+- `mutateIn(allocator, key, specs, options)` - Subdocument mutation
 - `ping(allocator)` - Ping services (stub)
 - `diagnostics(allocator)` - Get diagnostics (stub)
 
@@ -327,6 +327,7 @@ Implemented:
 - Connection management with env vars
 - KV operations (get, insert, upsert, replace, remove, append, prepend)
 - EXISTS operation
+- Subdocument operations (lookupIn, mutateIn with all 12 operation types)
 - Counter operations
 - Touch and unlock
 - CAS support
@@ -334,10 +335,9 @@ Implemented:
 - N1QL queries
 - Replica reads
 - Error handling
-- 58 comprehensive tests
+- 64 comprehensive tests
 
 Not implemented:
-- Subdocument operations (partial)
 - Analytics queries
 - Full-text search
 - Views

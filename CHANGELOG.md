@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.2.0] - 2025-10-06
+
+### Added
+- **Subdocument Operations** - Full implementation of subdocument API
+  - lookupIn() - Multi-path document lookups
+  - mutateIn() - Multi-path document mutations
+  - All subdocument operation types (get, exists, replace, dict operations, array operations, delete, counter)
+- Subdocument tests (6 comprehensive tests)
+- Support for all 12 subdocument operation types
+
+### Changed
+- Subdocument operations moved from stub to full implementation
+- Core operations coverage increased to 92%
+- Subdocument operations coverage: 0% -> 100%
+
+### Technical Details
+- Uses lcb_SUBDOCSPECS API for building operation lists
+- Supports CAS, expiry, and durability for subdocument mutations
+- Proper memory management for multi-result responses
+
+### Breaking Changes
+- None - subdocument operations were stubs before
+
 ## [0.1.1] - 2025-10-06
 
 ### Added

@@ -1,16 +1,17 @@
 # Gap Analysis: Zig Client vs libcouchbase C Library
 
-Version 0.1.1 - October 6, 2025
+Version 0.2.0 - October 6, 2025
 
 This document compares the Zig wrapper implementation against the full libcouchbase C library to identify missing features.
 
-## Recent Updates (v0.1.1)
+## Recent Updates (v0.2.0)
 
-- Added APPEND operation (Complete)
-- Added PREPEND operation (Complete)
-- Added EXISTS operation (Complete)
-- Core KV operations now at 92% (12/13)
-- 58 tests all passing
+- **Subdocument Operations - FULLY IMPLEMENTED** (all 12 operations)
+- lookupIn() and mutateIn() with full multi-spec support
+- Added APPEND, PREPEND, EXISTS operations (v0.1.1)
+- Core KV operations: 92% (12/13)
+- Subdocument operations: 100% (12/12)
+- 64 tests all passing
 - Environment variable test configuration
 
 ## libcouchbase Features
@@ -41,20 +42,20 @@ Based on the [libcouchbase repository](https://github.com/couchbase/libcouchbase
 
 | Feature | C Library | Zig Implementation | Status |
 |---------|-----------|-------------------|--------|
-| SUBDOC_GET | [YES] | [PARTIAL] | Stub only |
-| SUBDOC_EXISTS | [YES] | [PARTIAL] | Stub only |
-| SUBDOC_REPLACE | [YES] | [PARTIAL] | Stub only |
-| SUBDOC_DICT_ADD | [YES] | [PARTIAL] | Stub only |
-| SUBDOC_DICT_UPSERT | [YES] | [PARTIAL] | Stub only |
-| SUBDOC_ARRAY_ADD_FIRST | [YES] | [PARTIAL] | Stub only |
-| SUBDOC_ARRAY_ADD_LAST | [YES] | [PARTIAL] | Stub only |
-| SUBDOC_ARRAY_ADD_UNIQUE | [YES] | [PARTIAL] | Stub only |
-| SUBDOC_ARRAY_INSERT | [YES] | [PARTIAL] | Stub only |
-| SUBDOC_DELETE | [YES] | [PARTIAL] | Stub only |
-| SUBDOC_COUNTER | [YES] | [PARTIAL] | Stub only |
-| SUBDOC_GET_COUNT | [YES] | [PARTIAL] | Stub only |
-| SUBDOC_MULTI_LOOKUP | [YES] | [PARTIAL] | Stub only |
-| SUBDOC_MULTI_MUTATION | [YES] | [PARTIAL] | Stub only |
+| SUBDOC_GET | [YES] | [YES] | Complete (v0.2.0) |
+| SUBDOC_EXISTS | [YES] | [YES] | Complete (v0.2.0) |
+| SUBDOC_REPLACE | [YES] | [YES] | Complete (v0.2.0) |
+| SUBDOC_DICT_ADD | [YES] | [YES] | Complete (v0.2.0) |
+| SUBDOC_DICT_UPSERT | [YES] | [YES] | Complete (v0.2.0) |
+| SUBDOC_ARRAY_ADD_FIRST | [YES] | [YES] | Complete (v0.2.0) |
+| SUBDOC_ARRAY_ADD_LAST | [YES] | [YES] | Complete (v0.2.0) |
+| SUBDOC_ARRAY_ADD_UNIQUE | [YES] | [YES] | Complete (v0.2.0) |
+| SUBDOC_ARRAY_INSERT | [YES] | [YES] | Complete (v0.2.0) |
+| SUBDOC_DELETE | [YES] | [YES] | Complete (v0.2.0) |
+| SUBDOC_COUNTER | [YES] | [YES] | Complete (v0.2.0) |
+| SUBDOC_GET_COUNT | [YES] | [YES] | Complete (v0.2.0) |
+| SUBDOC_MULTI_LOOKUP | [YES] | [YES] | Complete (v0.2.0) |
+| SUBDOC_MULTI_MUTATION | [YES] | [YES] | Complete (v0.2.0) |
 
 ### 3. Query Operations
 
@@ -210,8 +211,7 @@ libcouchbase C library includes extensive tests for:
 19. Environment variable configuration
 
 [NO] **Missing Tests**:
-1. Subdocument operations
-2. Views
+1. Views
 3. Analytics
 4. Full-text search
 5. Transactions
@@ -310,7 +310,7 @@ libcouchbase C library includes extensive tests for:
 
 - **Core KV Operations**: 92% (12/13 operations)
 - **Query Operations**: 20% (1/5 operations)
-- **Subdocument Operations**: 0% (0/12 operations)
+- **Subdocument Operations**: 100% (12/12 operations)
 - **Durability Features**: 70% (sync durability only)
 - **Error Handling**: 80% (major codes covered)
 - **Connection Management**: 60% (basic connection only)
@@ -448,16 +448,16 @@ libcouchbase C library includes extensive tests for:
 - Idiomatic Zig API
 - Memory safe
 - Environment variable configuration
-- Comprehensive test coverage (58 tests)
+- Comprehensive test coverage (64 tests)
+- Full subdocument operations (v0.2.0)
 
 ### Gaps
 
-- [NO] Subdocument operations (not implemented)
 - [NO] Analytics queries (not implemented)
 - [NO] Transactions (not implemented)
 - [NO] Views (not implemented)
 - [NO] Full-text search (not implemented)
-- [NO] GET with lock, EXISTS, OBSERVE (not implemented)
+- [NO] GET with lock, OBSERVE (not implemented)
 - [NO] Collections/scopes API (not implemented)
 - [NO] Advanced connection features (pooling, failover)
 - [NO] Batch scheduling API
@@ -465,7 +465,7 @@ libcouchbase C library includes extensive tests for:
 
 ### Estimated Completion
 
-- **Current**: ~45% of libcouchbase functionality
+- **Current**: ~55% of libcouchbase functionality
 - **Core Operations**: ~92% complete
 - **Advanced Features**: ~15% complete
 
@@ -495,6 +495,8 @@ The Zig implementation provides a **solid foundation** with all essential KV ope
 - CAS and durability
 - Replica reads
 
-**Version 0.1.1 added**: APPEND, PREPEND, EXISTS operations, environment variable configuration, and comprehensive gap analysis.
+**Version 0.1.1 added**: APPEND, PREPEND, EXISTS operations, environment variable configuration.
+
+**Version 0.2.0 added**: Complete subdocument operations (lookupIn, mutateIn) with all 12 operation types.
 
 For applications requiring subdocuments, analytics, transactions, or advanced features, additional implementation work is needed. See "Not Implemented" section and effort estimates above.
