@@ -1,6 +1,17 @@
 # Gap Analysis: Zig Client vs libcouchbase C Library
 
+Version 0.1.1 - October 6, 2025
+
 This document compares the Zig wrapper implementation against the full libcouchbase C library to identify missing features.
+
+## Recent Updates (v0.1.1)
+
+- Added APPEND operation (Complete)
+- Added PREPEND operation (Complete)
+- Added EXISTS operation (Complete)
+- Core KV operations now at 92% (12/13)
+- 58 tests all passing
+- Environment variable test configuration
 
 ## libcouchbase Features
 
@@ -16,8 +27,8 @@ Based on the [libcouchbase repository](https://github.com/couchbase/libcouchbase
 | INSERT | [YES] | [YES] | Complete |
 | UPSERT | [YES] | [YES] | Complete |
 | REPLACE | [YES] | [YES] | Complete |
-| APPEND | [YES] | [PARTIAL] | API exists, not tested |
-| PREPEND | [YES] | [PARTIAL] | API exists, not tested |
+| APPEND | [YES] | [YES] | Complete (v0.1.1) |
+| PREPEND | [YES] | [YES] | Complete (v0.1.1) |
 | REMOVE | [YES] | [YES] | Complete |
 | INCREMENT | [YES] | [YES] | Complete |
 | DECREMENT | [YES] | [YES] | Complete |
@@ -180,20 +191,23 @@ libcouchbase C library includes extensive tests for:
 [YES] **Implemented Tests**:
 1. Connection and disconnection
 2. Basic CRUD (get, insert, upsert, replace, remove)
-3. Counter operations (increment, decrement)
-4. Touch operation
-5. CAS (optimistic locking)
-6. Durability levels
-7. Replica reads
-8. N1QL queries
-9. Expiration/TTL
-10. Flags support
-11. Error handling (major error codes)
-12. Batch operations (sequential)
-13. Large documents
-14. Stress testing
-15. Edge cases
-16. All option combinations
+3. APPEND and PREPEND operations (v0.1.1)
+4. EXISTS operation (v0.1.1)
+5. Counter operations (increment, decrement)
+6. Touch operation
+7. CAS (optimistic locking)
+8. Durability levels
+9. Replica reads
+10. N1QL queries
+11. Expiration/TTL
+12. Flags support
+13. Error handling (major error codes)
+14. Batch operations (sequential)
+15. Large documents
+16. Stress testing
+17. Edge cases
+18. All option combinations
+19. Environment variable configuration
 
 [NO] **Missing Tests**:
 1. Subdocument operations
@@ -204,12 +218,11 @@ libcouchbase C library includes extensive tests for:
 6. Collections/scopes
 7. Observe-based durability
 8. GET with lock
-9. EXISTS operation
-10. Connection failover
-11. Network error handling
-12. Prepared statement caching
-13. Query parameters (positional/named)
-14. Mock server tests
+9. Connection failover
+10. Network error handling
+11. Prepared statement caching
+12. Query parameters (positional/named)
+13. Mock server tests
 
 ## Feature Implementation Priority
 
@@ -315,24 +328,25 @@ libcouchbase C library includes extensive tests for:
 
 ### Immediate Actions
 
-1. [YES] **Environment Variables** - Use env vars for test config
-2. **Implement GET with Lock** - Common use case
-3. **Implement EXISTS** - Performance optimization
-4. **Full Subdocument Support** - Critical for modern apps
+1. [DONE] **Environment Variables** - Use env vars for test config (v0.1.1)
+2. [DONE] **Implement EXISTS** - Performance optimization (v0.1.1)
+3. [DONE] **Implement APPEND/PREPEND** - Text manipulation operations (v0.1.1)
+4. **Implement GET with Lock** - Common use case (next priority)
+5. **Full Subdocument Support** - Critical for modern apps
 
 ### Next Phase
 
-5. **Analytics Queries** - Growing use case
-6. **Query Parameters** - Security best practice
-7. **Collections API** - Required for multi-tenancy
-8. **Batch Operations** - Performance critical
+6. **Analytics Queries** - Growing use case
+7. **Query Parameters** - Security best practice
+8. **Collections API** - Required for multi-tenancy
+9. **Batch Operations** - Performance critical
 
 ### Future Enhancements
 
-9. **Transactions** - ACID compliance
-10. **Full-text Search** - Advanced queries
-11. **Connection Pooling** - High-throughput apps
-12. **Async/Await** - When Zig supports it
+10. **Transactions** - ACID compliance
+11. **Full-text Search** - Advanced queries
+12. **Connection Pooling** - High-throughput apps
+13. **Async/Await** - When Zig supports it
 
 ## Test Gap Analysis
 
@@ -452,7 +466,7 @@ libcouchbase C library includes extensive tests for:
 ### Estimated Completion
 
 - **Current**: ~45% of libcouchbase functionality
-- **Core Operations**: ~85% complete
+- **Core Operations**: ~92% complete
 - **Advanced Features**: ~15% complete
 
 ### Effort Estimates
@@ -474,9 +488,13 @@ To reach feature parity with libcouchbase:
 ## Conclusion
 
 The Zig implementation provides a **solid foundation** with all essential KV operations and basic query support. It's **production-ready for applications** that primarily use:
-- Document CRUD operations
+- Document CRUD operations (including APPEND, PREPEND)
 - Counter operations
+- EXISTS checks
 - N1QL queries
 - CAS and durability
+- Replica reads
 
-For applications requiring subdocuments, analytics, transactions, or advanced features, additional implementation work is needed.
+**Version 0.1.1 added**: APPEND, PREPEND, EXISTS operations, environment variable configuration, and comprehensive gap analysis.
+
+For applications requiring subdocuments, analytics, transactions, or advanced features, additional implementation work is needed. See "Not Implemented" section and effort estimates above.
