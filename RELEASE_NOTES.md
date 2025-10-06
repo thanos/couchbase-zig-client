@@ -1,5 +1,83 @@
 # Release Notes
 
+## Version 0.2.0 (Beta) - October 6, 2025
+
+### Major New Feature: Subdocument Operations
+
+Complete implementation of subdocument API for efficient partial document updates and reads.
+
+#### Subdocument Lookup (lookupIn)
+```zig
+const specs = [_]couchbase.operations.SubdocSpec{
+    .{ .op = .get, .path = "user.name" },
+    .{ .op = .get, .path = "user.age" },
+    .{ .op = .exists, .path = "user.email" },
+};
+
+var result = try client.lookupIn(allocator, "doc-id", &specs);
+defer result.deinit();
+
+// Access values: result.values[0], result.values[1], ...
+```
+
+#### Subdocument Mutation (mutateIn)
+```zig
+const specs = [_]couchbase.operations.SubdocSpec{
+    .{ .op = .replace, .path = "user.age", .value = "31" },
+    .{ .op = .dict_add, .path = "user.email", .value = "\"alice@example.com\"" },
+    .{ .op = .array_add_last, .path = "tags", .value = "\"vip\"" },
+};
+
+var result = try client.mutateIn(allocator, "doc-id", &specs, .{});
+defer result.deinit();
+```
+
+### Supported Subdocument Operations
+
+**Lookup Operations**:
+- get - Retrieve field value
+- exists - Check if field exists
+- get_count - Get array/object count
+
+**Mutation Operations**:
+- replace - Replace field value
+- dict_add - Add field to object (fails if exists)
+- dict_upsert - Add or update field
+- array_add_first - Prepend to array
+- array_add_last - Append to array
+- array_add_unique - Add unique value to array
+- array_insert - Insert at array index
+- delete - Remove field
+- counter - Increment/decrement numeric field
+
+### Additional Features
+
+Same as 0.1.1 plus:
+- APPEND, PREPEND, EXISTS operations
+- Environment variable test configuration
+- Comprehensive subdocument tests
+
+### API Completeness
+
+- Core KV Operations: 92% (12/13)
+- Subdocument Operations: 100% (12/12)
+- Overall: ~55% of libcouchbase (up from ~45%)
+
+### Tests
+
+Total: 64 tests (58 from previous + 6 subdoc specific)
+- Unit tests: 16
+- Integration tests: 18  
+- Coverage tests: 14
+- New operations tests: 10 (includes subdoc)
+- All 64 tests passing
+
+### No Breaking Changes
+
+Subdocument operations were stubs in previous versions. Now fully functional.
+
+---
+
 ## Version 0.1.1 (Beta) - October 6, 2025
 
 ### New Features

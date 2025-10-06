@@ -719,25 +719,224 @@ pub fn exists(client: *Client, key: []const u8) Error!bool {
 
 /// Subdocument lookup
 pub fn lookupIn(client: *Client, allocator: std.mem.Allocator, key: []const u8, specs: []const SubdocSpec) Error!SubdocResult {
-    _ = client;
-    _ = key;
-    _ = specs;
-    // Subdocument API not available in base couchbase.h
-    // Requires additional headers or different API approach
-    _ = allocator;
-    return error.NotSupported;
+    var ctx = struct {
+        cas: u64 = 0,
+        values: std.ArrayList([]const u8),
+        err: ?Error = null,
+        done: bool = false,
+        allocator: std.mem.Allocator,
+        num_specs: usize,
+    }{
+        .values = std.ArrayList([]const u8).init(allocator),
+        .allocator = allocator,
+        .num_specs = specs.len,
+    };
+    
+    // Create subdoc specs
+    var subdoc_specs: ?*c.lcb_SUBDOCSPECS = null;
+    _ = c.lcb_subdocspecs_create(&subdoc_specs, specs.len);
+    defer _ = c.lcb_subdocspecs_destroy(subdoc_specs);
+    
+    for (specs, 0..) |spec, i| {
+        _ = c.lcb_subdocspecs_get(subdoc_specs, i, 0, spec.path.ptr, spec.path.len);
+    }
+    
+    var cmd: ?*c.lcb_CMDSUBDOC = null;
+    _ = c.lcb_cmdsubdoc_create(&cmd);
+    defer _ = c.lcb_cmdsubdoc_destroy(cmd);
+    
+    _ = c.lcb_cmdsubdoc_key(cmd, key.ptr, key.len);
+    _ = c.lcb_cmdsubdoc_specs(cmd, subdoc_specs);
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSUBDOC) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respsubdoc_cookie(resp, &cookie);
+            const Context = @TypeOf(ctx);
+            var context: *Context = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respsubdoc_status(resp);
+            if (rc != c.LCB_SUCCESS) {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+                context.done = true;
+                return;
+            }
+            
+            var cas: u64 = 0;
+            _ = c.lcb_respsubdoc_cas(resp, &cas);
+            context.cas = cas;
+            
+            // Get all results
+            var idx: usize = 0;
+            while (idx < context.num_specs) : (idx += 1) {
+                var value_ptr: [*c]const u8 = undefined;
+                var value_len: usize = undefined;
+                const result_rc = c.lcb_respsubdoc_result_value(resp, idx, &value_ptr, &value_len);
+                
+                if (result_rc == c.LCB_SUCCESS and value_len > 0) {
+                    const value_copy = context.allocator.dupe(u8, value_ptr[0..value_len]) catch {
+                        context.err = error.OutOfMemory;
+                        context.done = true;
+                        return;
+                    };
+                    context.values.append(value_copy) catch {
+                        context.allocator.free(value_copy);
+                        context.err = error.OutOfMemory;
+                        context.done = true;
+                        return;
+                    };
+                } else {
+                    // Empty or error result
+                    const empty = context.allocator.dupe(u8, "") catch {
+                        context.err = error.OutOfMemory;
+                        context.done = true;
+                        return;
+                    };
+                    context.values.append(empty) catch {
+                        context.allocator.free(empty);
+                        context.err = error.OutOfMemory;
+                        context.done = true;
+                        return;
+                    };
+                }
+            }
+            
+            context.done = true;
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_SDLOOKUP, @ptrCast(&callback));
+    
+    var rc = c.lcb_subdoc(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| {
+        for (ctx.values.items) |val| {
+            allocator.free(val);
+        }
+        ctx.values.deinit();
+        return err;
+    }
+    
+    return SubdocResult{
+        .cas = ctx.cas,
+        .values = try ctx.values.toOwnedSlice(),
+        .allocator = allocator,
+    };
 }
 
 /// Subdocument mutation
 pub fn mutateIn(client: *Client, allocator: std.mem.Allocator, key: []const u8, specs: []const SubdocSpec, options: SubdocOptions) Error!SubdocResult {
-    _ = client;
-    _ = key;
-    _ = specs;
-    _ = options;
-    // Subdocument API not available in base couchbase.h
-    // Requires additional headers or different API approach
-    _ = allocator;
-    return error.NotSupported;
+    var ctx = struct {
+        cas: u64 = 0,
+        values: std.ArrayList([]const u8),
+        err: ?Error = null,
+        done: bool = false,
+        allocator: std.mem.Allocator,
+        num_specs: usize,
+    }{
+        .values = std.ArrayList([]const u8).init(allocator),
+        .allocator = allocator,
+        .num_specs = specs.len,
+    };
+    
+    // Create subdoc specs
+    var subdoc_specs: ?*c.lcb_SUBDOCSPECS = null;
+    _ = c.lcb_subdocspecs_create(&subdoc_specs, specs.len);
+    defer _ = c.lcb_subdocspecs_destroy(subdoc_specs);
+    
+    for (specs, 0..) |spec, i| {
+        switch (spec.op) {
+            .get => _ = c.lcb_subdocspecs_get(subdoc_specs, i, 0, spec.path.ptr, spec.path.len),
+            .exists => _ = c.lcb_subdocspecs_exists(subdoc_specs, i, 0, spec.path.ptr, spec.path.len),
+            .replace => _ = c.lcb_subdocspecs_replace(subdoc_specs, i, 0, spec.path.ptr, spec.path.len, spec.value.ptr, spec.value.len),
+            .dict_add => _ = c.lcb_subdocspecs_dict_add(subdoc_specs, i, 0, spec.path.ptr, spec.path.len, spec.value.ptr, spec.value.len),
+            .dict_upsert => _ = c.lcb_subdocspecs_dict_upsert(subdoc_specs, i, 0, spec.path.ptr, spec.path.len, spec.value.ptr, spec.value.len),
+            .array_add_first => _ = c.lcb_subdocspecs_array_add_first(subdoc_specs, i, 0, spec.path.ptr, spec.path.len, spec.value.ptr, spec.value.len),
+            .array_add_last => _ = c.lcb_subdocspecs_array_add_last(subdoc_specs, i, 0, spec.path.ptr, spec.path.len, spec.value.ptr, spec.value.len),
+            .array_add_unique => _ = c.lcb_subdocspecs_array_add_unique(subdoc_specs, i, 0, spec.path.ptr, spec.path.len, spec.value.ptr, spec.value.len),
+            .array_insert => _ = c.lcb_subdocspecs_array_insert(subdoc_specs, i, 0, spec.path.ptr, spec.path.len, spec.value.ptr, spec.value.len),
+            .delete => _ = c.lcb_subdocspecs_remove(subdoc_specs, i, 0, spec.path.ptr, spec.path.len),
+            .counter => {
+                // Counter takes an i64 delta, not a value string
+                const delta = std.fmt.parseInt(i64, spec.value, 10) catch 0;
+                _ = c.lcb_subdocspecs_counter(subdoc_specs, i, 0, spec.path.ptr, spec.path.len, delta);
+            },
+            .get_count => _ = c.lcb_subdocspecs_get_count(subdoc_specs, i, 0, spec.path.ptr, spec.path.len),
+        }
+    }
+    
+    var cmd: ?*c.lcb_CMDSUBDOC = null;
+    _ = c.lcb_cmdsubdoc_create(&cmd);
+    defer _ = c.lcb_cmdsubdoc_destroy(cmd);
+    
+    _ = c.lcb_cmdsubdoc_key(cmd, key.ptr, key.len);
+    _ = c.lcb_cmdsubdoc_specs(cmd, subdoc_specs);
+    
+    if (options.cas > 0) {
+        _ = c.lcb_cmdsubdoc_cas(cmd, options.cas);
+    }
+    
+    if (options.expiry > 0) {
+        _ = c.lcb_cmdsubdoc_expiry(cmd, options.expiry);
+    }
+    
+    if (options.durability.level != .none) {
+        _ = c.lcb_cmdsubdoc_durability(cmd, @intFromEnum(options.durability.level));
+    }
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSUBDOC) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respsubdoc_cookie(resp, &cookie);
+            const Context = @TypeOf(ctx);
+            var context: *Context = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respsubdoc_status(resp);
+            if (rc != c.LCB_SUCCESS) {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+                context.done = true;
+                return;
+            }
+            
+            var cas: u64 = 0;
+            _ = c.lcb_respsubdoc_cas(resp, &cas);
+            context.cas = cas;
+            
+            context.done = true;
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_SDMUTATE, @ptrCast(&callback));
+    
+    var rc = c.lcb_subdoc(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| {
+        for (ctx.values.items) |val| {
+            allocator.free(val);
+        }
+        ctx.values.deinit();
+        return err;
+    }
+    
+    return SubdocResult{
+        .cas = ctx.cas,
+        .values = try ctx.values.toOwnedSlice(),
+        .allocator = allocator,
+    };
 }
 
 /// Ping operation
