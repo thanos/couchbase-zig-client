@@ -179,4 +179,16 @@ pub const Client = struct {
     pub fn diagnostics(self: *Client, allocator: std.mem.Allocator) Error!operations.DiagnosticsResult {
         return operations.diagnostics(self, allocator);
     }
+
+    /// Execute a view query
+    pub fn viewQuery(
+        self: *Client,
+        allocator: std.mem.Allocator,
+        design_doc: []const u8,
+        view_name: []const u8,
+        options: @import("views.zig").ViewOptions,
+    ) Error!@import("views.zig").ViewResult {
+        const views = @import("views.zig");
+        return views.viewQuery(self, allocator, design_doc, view_name, options);
+    }
 };

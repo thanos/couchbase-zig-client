@@ -1,17 +1,20 @@
 # Gap Analysis: Zig Client vs libcouchbase C Library
 
-Version 0.2.0 - October 6, 2025
+Version 0.3.0 - October 6, 2025
 
 This document compares the Zig wrapper implementation against the full libcouchbase C library to identify missing features.
 
-## Recent Updates (v0.2.0)
+## Recent Updates (v0.3.0)
 
-- **Subdocument Operations - FULLY IMPLEMENTED** (all 12 operations)
+- **View Query Operations - FULLY IMPLEMENTED**
+- viewQuery() with all view options
+- **Subdocument Operations - FULLY IMPLEMENTED** (all 12 operations, v0.2.0)
 - lookupIn() and mutateIn() with full multi-spec support
 - Added APPEND, PREPEND, EXISTS operations (v0.1.1)
 - Core KV operations: 92% (12/13)
 - Subdocument operations: 100% (12/12)
-- 64 tests all passing
+- View operations: 100% (1/1)
+- 69 tests all passing
 - Environment variable test configuration
 
 ## libcouchbase Features
@@ -73,9 +76,9 @@ Based on the [libcouchbase repository](https://github.com/couchbase/libcouchbase
 
 | Feature | C Library | Zig Implementation | Status |
 |---------|-----------|-------------------|--------|
-| View Query | [YES] | [NO] | Missing |
+| View Query | [YES] | [YES] | Complete (v0.3.0) |
 | Spatial Views | [YES] | [NO] | Missing |
-| View Query Options | [YES] | [PARTIAL] | Type exists, not implemented |
+| View Query Options | [YES] | [YES] | Complete (v0.3.0) |
 
 ### 5. Full-Text Search (FTS)
 
@@ -211,8 +214,8 @@ libcouchbase C library includes extensive tests for:
 19. Environment variable configuration
 
 [NO] **Missing Tests**:
-1. Views
-3. Analytics
+1. Spatial views
+2. Analytics
 4. Full-text search
 5. Transactions
 6. Collections/scopes
@@ -455,7 +458,7 @@ libcouchbase C library includes extensive tests for:
 
 - [NO] Analytics queries (not implemented)
 - [NO] Transactions (not implemented)
-- [NO] Views (not implemented)
+- [NO] Spatial views (not implemented)
 - [NO] Full-text search (not implemented)
 - [NO] GET with lock, OBSERVE (not implemented)
 - [NO] Collections/scopes API (not implemented)
@@ -465,7 +468,7 @@ libcouchbase C library includes extensive tests for:
 
 ### Estimated Completion
 
-- **Current**: ~55% of libcouchbase functionality
+- **Current**: ~60% of libcouchbase functionality
 - **Core Operations**: ~92% complete
 - **Advanced Features**: ~15% complete
 
@@ -498,5 +501,7 @@ The Zig implementation provides a **solid foundation** with all essential KV ope
 **Version 0.1.1 added**: APPEND, PREPEND, EXISTS operations, environment variable configuration.
 
 **Version 0.2.0 added**: Complete subdocument operations (lookupIn, mutateIn) with all 12 operation types.
+
+**Version 0.3.0 added**: Complete view query operations with all view options and reduce support.
 
 For applications requiring subdocuments, analytics, transactions, or advanced features, additional implementation work is needed. See "Not Implemented" section and effort estimates above.

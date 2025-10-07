@@ -6,6 +6,7 @@ pub const Error = @import("error.zig").Error;
 pub const StatusCode = @import("error.zig").StatusCode;
 pub const types = @import("types.zig");
 pub const operations = @import("operations.zig");
+pub const views = @import("views.zig");
 
 // Re-export common types
 pub const Document = types.Document;
@@ -13,6 +14,9 @@ pub const GetResult = operations.GetResult;
 pub const MutationResult = operations.MutationResult;
 pub const QueryResult = operations.QueryResult;
 pub const QueryOptions = operations.QueryOptions;
+pub const ViewResult = views.ViewResult;
+pub const ViewOptions = views.ViewOptions;
+pub const ViewStale = views.ViewStale;
 pub const Durability = types.Durability;
 pub const DurabilityLevel = types.DurabilityLevel;
 

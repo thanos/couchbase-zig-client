@@ -103,11 +103,31 @@ pub fn build(b: *std.Build) void {
     new_ops_tests.linkSystemLibrary("couchbase");
     new_ops_tests.linkLibC();
 
+    const view_tests = b.addTest(.{
+        .root_source_file = b.path("tests/view_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    view_tests.root_module.addImport("couchbase", couchbase_module);
+    view_tests.linkSystemLibrary("couchbase");
+    view_tests.linkLibC();
+
+    const demo_tests = b.addTest(.{
+        .root_source_file = b.path("demo_integration_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    demo_tests.root_module.addImport("couchbase", couchbase_module);
+    demo_tests.linkSystemLibrary("couchbase");
+    demo_tests.linkLibC();
+
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const run_integration_tests = b.addRunArtifact(integration_tests);
     const run_coverage_tests = b.addRunArtifact(coverage_tests);
     const run_new_ops_tests = b.addRunArtifact(new_ops_tests);
+    const run_view_tests = b.addRunArtifact(view_tests);
+    const run_demo_tests = b.addRunArtifact(demo_tests);
 
     const test_step = b.step("test", "Run all tests");
     test_step.dependOn(&run_lib_unit_tests.step);
@@ -126,10 +146,17 @@ pub fn build(b: *std.Build) void {
     const new_ops_test_step = b.step("test-new-ops", "Run new operations tests");
     new_ops_test_step.dependOn(&run_new_ops_tests.step);
 
+    const view_test_step = b.step("test-views", "Run view query tests");
+    view_test_step.dependOn(&run_view_tests.step);
+
+    const demo_test_step = b.step("test-demo", "Run comprehensive demo test");
+    demo_test_step.dependOn(&run_demo_tests.step);
+
     const all_tests_step = b.step("test-all", "Run all test suites");
     all_tests_step.dependOn(&run_lib_unit_tests.step);
     all_tests_step.dependOn(&run_unit_tests.step);
     all_tests_step.dependOn(&run_integration_tests.step);
     all_tests_step.dependOn(&run_coverage_tests.step);
     all_tests_step.dependOn(&run_new_ops_tests.step);
+    all_tests_step.dependOn(&run_view_tests.step);
 }

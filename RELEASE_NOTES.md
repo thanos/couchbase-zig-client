@@ -1,5 +1,59 @@
 # Release Notes
 
+## Version 0.3.0 (Beta) - October 6, 2025
+
+### Major New Feature: View Query Operations
+
+Complete implementation of View (map/reduce) query API for legacy Couchbase applications.
+
+#### View Query
+```zig
+var result = try client.viewQuery(
+    allocator,
+    "design_doc_name",  // Design document
+    "view_name",        // View name
+    .{
+        .limit = 100,
+        .skip = 0,
+        .descending = false,
+        .include_docs = true,
+        .reduce = false,
+    },
+);
+defer result.deinit();
+
+for (result.rows) |row| {
+    std.debug.print("Row: {s}\n", .{row});
+}
+```
+
+### Supported View Options
+
+- `limit` - Maximum number of rows to return
+- `skip` - Number of rows to skip
+- `descending` - Reverse sort order
+- `include_docs` - Include full documents
+- `reduce` - Enable/disable reduce function
+- `group` - Group reduce results
+- `group_level` - Group level for reduce
+- `start_key` / `end_key` - Key range filtering
+- `start_key_doc_id` / `end_key_doc_id` - Doc ID range
+- `stale` - Consistency options (update_before, ok, update_after)
+
+### API Completeness
+
+- Core KV Operations: 92% (12/13)
+- Subdocument Operations: 100% (12/12)
+- View Operations: 100% (1/1)
+- Overall: ~60% of libcouchbase (up from ~55%)
+
+### Tests
+
+Total: 69 tests (64 from previous + 5 view tests)
+- All 69 tests passing
+
+---
+
 ## Version 0.2.0 (Beta) - October 6, 2025
 
 ### Major New Feature: Subdocument Operations

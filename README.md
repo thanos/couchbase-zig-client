@@ -328,6 +328,7 @@ Implemented:
 - KV operations (get, insert, upsert, replace, remove, append, prepend)
 - EXISTS operation
 - Subdocument operations (lookupIn, mutateIn with all 12 operation types)
+- View queries (map/reduce with all options)
 - Counter operations
 - Touch and unlock
 - CAS support
@@ -335,12 +336,12 @@ Implemented:
 - N1QL queries
 - Replica reads
 - Error handling
-- 64 comprehensive tests
+- 69 comprehensive tests
 
 Not implemented:
 - Analytics queries
 - Full-text search
-- Views
+- Spatial views
 - Transactions
 - Connection pooling
 - Async support

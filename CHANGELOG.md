@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.3.0] - 2025-10-06
+
+### Added
+- **View Query Operations** - Full implementation of View API
+  - viewQuery() - Execute map/reduce view queries
+  - Support for all view options (limit, skip, reduce, group, key ranges, etc.)
+  - ViewResult type with row streaming
+  - ViewOptions configuration
+  - ViewStale consistency options
+- 5 view query tests
+- src/views.zig module for view operations
+
+### Changed
+- View operations moved from not implemented to fully functional
+- Added views module to public API
+- View query coverage: 0% -> 100%
+
+### Features
+- Limit and skip for pagination
+- Descending order
+- Include docs option
+- Reduce operations with group/group_level
+- Key range queries (startkey, endkey)
+- Stale/consistency options
+- Full query string building
+
 ## [0.2.0] - 2025-10-06
 
 ### Added
