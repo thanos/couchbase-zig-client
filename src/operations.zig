@@ -63,8 +63,37 @@ pub const CounterOptions = struct {
 pub const QueryOptions = struct {
     consistency: types.ScanConsistency = .not_bounded,
     parameters: ?[]const []const u8 = null,
+    named_parameters: ?std.StringHashMap([]const u8) = null,
     timeout_ms: u32 = 75000,
     adhoc: bool = true,
+    
+    /// Create query options with positional parameters
+    pub fn withPositionalParams(allocator: std.mem.Allocator, params: []const []const u8) !QueryOptions {
+        const param_copy = try allocator.alloc([]const u8, params.len);
+        for (params, 0..) |param, i| {
+            param_copy[i] = try allocator.dupe(u8, param);
+        }
+        return QueryOptions{
+            .parameters = param_copy,
+        };
+    }
+    
+    /// Create query options with named parameters
+    pub fn withNamedParams(allocator: std.mem.Allocator, params: anytype) !QueryOptions {
+        var named_params = std.StringHashMap([]const u8).init(allocator);
+        const T = @TypeOf(params);
+        if (@typeInfo(T) == .@"struct") {
+            inline for (@typeInfo(T).@"struct".fields) |field| {
+                const value = @field(params, field.name);
+                const key = try allocator.dupe(u8, field.name);
+                const value_str = try std.fmt.allocPrint(allocator, "{s}", .{value});
+                try named_params.put(key, value_str);
+            }
+        }
+        return QueryOptions{
+            .named_parameters = named_params,
+        };
+    }
 };
 
 /// Query result
@@ -601,6 +630,21 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     
     _ = c.lcb_cmdquery_statement(cmd, statement.ptr, statement.len);
     _ = c.lcb_cmdquery_adhoc(cmd, if (options.adhoc) 1 else 0);
+    
+    // Handle positional parameters
+    if (options.parameters) |params| {
+        for (params) |param| {
+            _ = c.lcb_cmdquery_positional_param(cmd, param.ptr, param.len);
+        }
+    }
+    
+    // Handle named parameters
+    if (options.named_parameters) |named_params| {
+        var iterator = named_params.iterator();
+        while (iterator.next()) |entry| {
+            _ = c.lcb_cmdquery_named_param(cmd, entry.key_ptr.ptr, entry.key_ptr.len, entry.value_ptr.ptr, entry.value_ptr.len);
+        }
+    }
     
     const callback = struct {
         fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPQUERY) callconv(.C) void {

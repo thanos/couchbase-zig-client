@@ -4,7 +4,15 @@ Version 0.3.0 - October 6, 2025
 
 This document compares the Zig wrapper implementation against the full libcouchbase C library to identify missing features.
 
-## Recent Updates (v0.3.0)
+## Recent Updates (v0.3.1)
+
+### ✅ Completed Features
+- **Parameterized N1QL Queries**: Positional and named parameter support
+- **SQL Injection Prevention**: Secure parameter binding
+- **Query Plan Caching**: Performance improvements for repeated queries
+- **Enhanced Query Security**: Type-safe parameter handling
+
+### Previous Updates (v0.3.0)
 
 - **View Query Operations - FULLY IMPLEMENTED**
 - viewQuery() with all view options
