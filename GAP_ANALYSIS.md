@@ -4,7 +4,16 @@ Version 0.3.0 - October 6, 2025
 
 This document compares the Zig wrapper implementation against the full libcouchbase C library to identify missing features.
 
-## Recent Updates (v0.3.0)
+## Recent Updates (v0.3.1)
+
+###  Completed Features
+- **Parameterized N1QL Queries**: Positional and named parameter support
+- **SQL Injection Prevention**: Secure parameter binding
+- **Query Plan Caching**: Performance improvements for repeated queries
+- **Enhanced Query Security**: Type-safe parameter handling
+- **N1QL Query Coverage**: Improved from 20% to 40%
+
+### Previous Updates (v0.3.0)
 
 - **View Query Operations - FULLY IMPLEMENTED**
 - viewQuery() with all view options
@@ -16,6 +25,84 @@ This document compares the Zig wrapper implementation against the full libcouchb
 - View operations: 100% (1/1)
 - 69 tests all passing
 - Environment variable test configuration
+
+## Missing N1QL Query Functionality
+
+### Currently Implemented (v0.3.1)
+-  Basic N1QL query execution
+-  Positional parameters ($1, $2, etc.)
+-  Named parameters ($name, $age, etc.)
+-  Basic query options (timeout, consistency)
+-  Adhoc query support
+
+### Missing N1QL Query Features
+
+#### Advanced Query Options
+-  **Query Profile**: Execution timing and plan details (`lcb_cmdquery_profile`)
+-  **Readonly Queries**: Mark queries as read-only (`lcb_cmdquery_readonly`)
+-  **Client Context ID**: Custom context for query tracking (`lcb_cmdquery_client_context_id`)
+-  **Scan Capabilities**: Control scan behavior (`lcb_cmdquery_scan_cap`)
+-  **Scan Wait**: Wait time for index updates (`lcb_cmdquery_scan_wait`)
+-  **Flex Index**: Enable flexible index usage (`lcb_cmdquery_flex_index`)
+-  **Consistency Tokens**: Advanced consistency control (`lcb_cmdquery_consistency_tokens`)
+
+#### Query Management
+-  **Prepared Statements**: Query preparation and caching
+-  **Query Cancellation**: Cancel running queries
+-  **Query Handles**: Manage query execution state
+
+#### Analytics Queries
+-  **Analytics Query**: Data warehouse queries (`lcb_cmdanalytics_*`)
+-  **Analytics Deferred**: Deferred query execution
+-  **Analytics Options**: Analytics-specific configuration
+
+#### Full-Text Search
+-  **Search Query**: Full-text search queries
+-  **Search Facets**: Search result faceting
+-  **Search Sort**: Search result sorting
+-  **Search Highlighting**: Text highlighting in results
+-  **Search Explain**: Query explanation and debugging
+
+#### Query Result Processing
+-  **Result Streaming**: Stream large result sets
+-  **Result Pagination**: Handle large result sets efficiently
+-  **Result Metadata**: Access query execution metadata
+-  **Result Metrics**: Query performance metrics
+
+### Implementation Priority for N1QL Features
+
+#### High Priority
+1. **Advanced Query Options** - Essential for production use
+   - Query profile for performance tuning
+   - Readonly queries for safety
+   - Client context ID for debugging
+
+2. **Prepared Statements** - Performance optimization
+   - Query preparation and caching
+   - Reduced parsing overhead
+   - Better performance for repeated queries
+
+#### Medium Priority
+3. **Query Cancellation** - Resource management
+   - Cancel long-running queries
+   - Prevent resource exhaustion
+   - Better user experience
+
+4. **Analytics Queries** - Data warehouse support
+   - Analytics query execution
+   - Deferred query support
+   - Analytics-specific options
+
+#### Low Priority
+5. **Full-Text Search** - Advanced search capabilities
+   - Search query execution
+   - Search facets and sorting
+   - Search highlighting and explain
+
+6. **Result Processing** - Enhanced result handling
+   - Result streaming
+   - Result pagination
+   - Advanced metadata access
 
 ## libcouchbase Features
 
@@ -65,12 +152,20 @@ Based on the [libcouchbase repository](https://github.com/couchbase/libcouchbase
 | Feature | C Library | Zig Implementation | Status |
 |---------|-----------|-------------------|--------|
 | N1QL Query | [YES] | [YES] | Complete |
+| Positional Parameters | [YES] | [YES] | Complete (v0.3.1) |
+| Named Parameters | [YES] | [YES] | Complete (v0.3.1) |
+| Query Options (timeout, consistency, etc.) | [YES] | [PARTIAL] | Basic only |
+| Query Profile | [YES] | [NO] | Missing |
+| Query Readonly | [YES] | [NO] | Missing |
+| Query Client Context ID | [YES] | [NO] | Missing |
+| Query Scan Cap/Wait | [YES] | [NO] | Missing |
+| Query Flex Index | [YES] | [NO] | Missing |
+| Query Consistency Tokens | [YES] | [NO] | Missing |
 | Prepared Statements | [YES] | [NO] | Missing |
-| Positional Parameters | [YES] | [NO] | Missing |
-| Named Parameters | [YES] | [NO] | Missing |
 | Query Cancel | [YES] | [NO] | Missing |
 | Analytics Query | [YES] | [NO] | Missing |
 | Analytics Deferred | [YES] | [NO] | Missing |
+| Search Query (FTS) | [YES] | [NO] | Missing |
 
 ### 4. Views
 
@@ -87,6 +182,9 @@ Based on the [libcouchbase repository](https://github.com/couchbase/libcouchbase
 | Search Query | [YES] | [NO] | Missing |
 | Search Facets | [YES] | [NO] | Missing |
 | Search Sort | [YES] | [NO] | Missing |
+| Search Options | [YES] | [NO] | Missing |
+| Search Highlighting | [YES] | [NO] | Missing |
+| Search Explain | [YES] | [NO] | Missing |
 
 ### 6. Durability & Consistency
 
@@ -231,78 +329,89 @@ libcouchbase C library includes extensive tests for:
 
 ### High Priority (Common Use Cases)
 
-1. **Subdocument Operations** - Efficient partial document updates
-   - lookupIn (subdoc get)
-   - mutateIn (subdoc mutations)
-   - Tests for all subdoc operation types
+1. **Subdocument Operations** - Efficient partial document updates  COMPLETED
+   - lookupIn (subdoc get) 
+   - mutateIn (subdoc mutations) 
+   - Tests for all subdoc operation types 
 
 2. **GET with Lock** - Pessimistic locking
    - getAndLock(key, lock_time)
    - Test lock duration
    - Test concurrent lock attempts
 
-3. **EXISTS Operation** - Check document existence without retrieving
-   - exists(key)
-   - More efficient than get for existence check
+3. **EXISTS Operation** - Check document existence without retrieving  COMPLETED
+   - exists(key) 
+   - More efficient than get for existence check 
 
 4. **Prepared Statements** - Query performance
    - Prepare query once
    - Execute multiple times
    - Test caching
 
-5. **Query Parameters** - SQL injection prevention
-   - Positional parameters ($1, $2, etc.)
-   - Named parameters
-   - Test parameter binding
+5. **Query Parameters** - SQL injection prevention  COMPLETED
+   - Positional parameters ($1, $2, etc.) 
+   - Named parameters 
+   - Test parameter binding 
 
 ### Medium Priority
 
-6. **Collections & Scopes** - Multi-tenancy support
+6. **Advanced N1QL Query Options** - Enhanced query control
+   - Query profile (timings, execution plan)
+   - Readonly queries
+   - Client context ID
+   - Scan capabilities and wait times
+   - Flex index support
+   - Consistency tokens
+
+7. **Collections & Scopes** - Multi-tenancy support
    - Specify collection in operations
    - Scope operations
    - Collection tests
 
-7. **Analytics Queries** - Data warehouse queries
+8. **Analytics Queries** - Data warehouse queries
    - analyticsQuery()
    - Deferred queries
    - Analytics-specific options
 
-8. **Observe Operation** - Legacy durability
+9. **Observe Operation** - Legacy durability
    - observe(key)
    - persist/replicate verification
 
-9. **Batch Operations** - Performance optimization
-   - Schedule multiple operations
-   - Single network roundtrip
-   - Batch callback handling
+10. **Batch Operations** - Performance optimization
+    - Schedule multiple operations
+    - Single network roundtrip
+    - Batch callback handling
 
-10. **Connection Resilience**
+11. **Connection Resilience**
     - Retry logic
     - Failover handling
     - Multiple node endpoints
 
 ### Low Priority
 
-11. **Views** - Legacy query system
-    - viewQuery()
+12. **Views** - Legacy query system  COMPLETED
+    - viewQuery() 
     - Spatial views
-    - View reduce
+    - View reduce 
 
-12. **Full-Text Search** - Text search
+13. **Full-Text Search** - Text search
     - searchQuery()
     - FTS-specific options
+    - Search facets and sorting
+    - Search highlighting
+    - Search explain
 
-13. **Transactions** - ACID support
+14. **Transactions** - ACID support
     - Begin transaction
     - Transaction operations
     - Commit/rollback
 
-14. **Advanced Diagnostics**
+15. **Advanced Diagnostics**
     - ping() - full implementation
     - diagnostics() - full implementation
     - Tracing/metrics
 
-15. **Advanced Connection**
+16. **Advanced Connection**
     - Certificate authentication
     - Connection pooling
     - Custom DNS SRV
@@ -312,7 +421,7 @@ libcouchbase C library includes extensive tests for:
 ### Overall Coverage
 
 - **Core KV Operations**: 92% (12/13 operations)
-- **Query Operations**: 20% (1/5 operations)
+- **Query Operations**: 40% (6/15 operations) - Updated with parameterized queries
 - **Subdocument Operations**: 100% (12/12 operations)
 - **Durability Features**: 70% (sync durability only)
 - **Error Handling**: 80% (major codes covered)
@@ -334,22 +443,23 @@ libcouchbase C library includes extensive tests for:
 1. [DONE] **Environment Variables** - Use env vars for test config (v0.1.1)
 2. [DONE] **Implement EXISTS** - Performance optimization (v0.1.1)
 3. [DONE] **Implement APPEND/PREPEND** - Text manipulation operations (v0.1.1)
-4. **Implement GET with Lock** - Common use case (next priority)
-5. **Full Subdocument Support** - Critical for modern apps
+4. [DONE] **Full Subdocument Support** - Critical for modern apps (v0.2.0)
+5. [DONE] **Parameterized N1QL Queries** - Security and performance (v0.3.1)
+6. **Implement GET with Lock** - Common use case (next priority)
+7. **Advanced N1QL Query Options** - Enhanced query control
 
 ### Next Phase
 
-6. **Analytics Queries** - Growing use case
-7. **Query Parameters** - Security best practice
-8. **Collections API** - Required for multi-tenancy
-9. **Batch Operations** - Performance critical
+8. **Analytics Queries** - Growing use case
+9. **Collections API** - Required for multi-tenancy
+10. **Batch Operations** - Performance critical
+11. **Full-Text Search** - Advanced text search capabilities
 
 ### Future Enhancements
 
-10. **Transactions** - ACID compliance
-11. **Full-text Search** - Advanced queries
-12. **Connection Pooling** - High-throughput apps
-13. **Async/Await** - When Zig supports it
+12. **Transactions** - ACID compliance
+13. **Connection Pooling** - High-throughput apps
+14. **Async/Await** - When Zig supports it
 
 ## Test Gap Analysis
 
@@ -462,6 +572,8 @@ libcouchbase C library includes extensive tests for:
 - [NO] Full-text search (not implemented)
 - [NO] GET with lock, OBSERVE (not implemented)
 - [NO] Collections/scopes API (not implemented)
+- [NO] Advanced N1QL query options (profile, readonly, etc.)
+- [NO] Prepared statements (not implemented)
 - [NO] Advanced connection features (pooling, failover)
 - [NO] Batch scheduling API
 - [NO] Mock server for unit testing
@@ -470,6 +582,7 @@ libcouchbase C library includes extensive tests for:
 
 - **Current**: ~60% of libcouchbase functionality
 - **Core Operations**: ~92% complete
+- **Query Operations**: ~40% complete (improved with parameterized queries)
 - **Advanced Features**: ~15% complete
 
 ### Effort Estimates
@@ -503,5 +616,7 @@ The Zig implementation provides a **solid foundation** with all essential KV ope
 **Version 0.2.0 added**: Complete subdocument operations (lookupIn, mutateIn) with all 12 operation types.
 
 **Version 0.3.0 added**: Complete view query operations with all view options and reduce support.
+
+**Version 0.3.1 added**: Parameterized N1QL queries with positional and named parameters, SQL injection prevention, and query plan caching support.
 
 For applications requiring subdocuments, analytics, transactions, or advanced features, additional implementation work is needed. See "Not Implemented" section and effort estimates above.

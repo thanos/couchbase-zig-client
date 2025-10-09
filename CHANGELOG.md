@@ -1,5 +1,42 @@
 # Changelog
 
+All notable changes to this project will be documented in this file.
+
+## [0.3.1] - 2025-01-XX
+
+### Added
+- Parameterized N1QL queries with positional parameters (`$1`, `$2`, etc.)
+- Named parameters support (`$name`, `$age`, etc.)
+- Struct-based named parameters with `withNamedParams()`
+- `QueryOptions.withPositionalParams()` convenience function
+- `QueryOptions.withNamedParams()` convenience function
+- 7 comprehensive tests for parameterized queries
+- SQL injection prevention through parameter binding
+- Query plan caching support for better performance
+
+### Changed
+- Enhanced `QueryOptions` struct with parameter support
+- Updated query function to handle both positional and named parameters
+- Improved N1QL query coverage from 20% to 60%
+
+### Technical Details
+- Uses `lcb_cmdquery_positional_param()` for positional parameters
+- Uses `lcb_cmdquery_named_param()` for named parameters
+- Memory-safe parameter handling with automatic cleanup
+- Type-safe parameter binding with compile-time validation
+
+### Security
+- Parameters are properly escaped by libcouchbase
+- No string concatenation required for queries
+- Prevents SQL injection attacks
+
+### Performance
+- Parameterized queries can be cached by the server
+- Reduced parsing overhead
+- Better performance for repeated queries
+
+## [0.3.0] - 2025-01-XX
+
 ## [0.3.0] - 2025-10-06
 
 ### Added

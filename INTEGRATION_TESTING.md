@@ -143,13 +143,13 @@ zig build test-all
 ================================================================================
            COUCHBASE ZIG CLIENT - INTEGRATION TESTS
 ================================================================================
-✓ Couchbase server is running on localhost:8091
-✓ Unit Tests: PASSED
-✓ Integration Tests: PASSED
-✓ Coverage Tests: PASSED
-✓ New Operations Tests: PASSED
-✓ View Tests: PASSED
-✓ All Tests: PASSED
+ Couchbase server is running on localhost:8091
+ Unit Tests: PASSED
+ Integration Tests: PASSED
+ Coverage Tests: PASSED
+ New Operations Tests: PASSED
+ View Tests: PASSED
+ All Tests: PASSED
 ================================================================================
 ```
 
@@ -161,34 +161,34 @@ zig build test-all
 
 1. BASIC KEY-VALUE OPERATIONS
 ----------------------------------------
-✓ Document created with CAS: 1759830658626551808
-✓ Retrieved document: {"name": "Alice Johnson", "age": 30, ...}
-✓ Document exists: true
+ Document created with CAS: 1759830658626551808
+ Retrieved document: {"name": "Alice Johnson", "age": 30, ...}
+ Document exists: true
 
 2. SUBDOCUMENT OPERATIONS
 ----------------------------------------
-✓ Added 3 subdocument fields
-✓ Field 0: "Alice Johnson"
-✓ Field 1: "San Francisco"
-✓ Field 2: ["reading", "hiking", "coding"]
+ Added 3 subdocument fields
+ Field 0: "Alice Johnson"
+ Field 1: "San Francisco"
+ Field 2: ["reading", "hiking", "coding"]
 
 3. COUNTER OPERATIONS
 ----------------------------------------
-✓ Counter incremented to: 0
-✓ Counter incremented to: 5
+ Counter incremented to: 0
+ Counter incremented to: 5
 
 4. TEXT OPERATIONS
 ----------------------------------------
-✓ Text operations result: Hello World!
+ Text operations result: Hello World!
 
 5. CAS (COMPARE AND SWAP)
 ----------------------------------------
-✓ Document updated with CAS: 1759830658632253440
+ Document updated with CAS: 1759830658632253440
 
 6. DURABILITY AND TTL
 ----------------------------------------
-✓ Document created with 5-second TTL
-✓ Document TTL extended to 10 seconds
+ Document created with 5-second TTL
+ Document TTL extended to 10 seconds
 
 7. QUERY OPERATIONS
 ----------------------------------------
@@ -200,19 +200,19 @@ View Query skipped: error.InvalidArgument
 
 9. ERROR HANDLING
 ----------------------------------------
-✓ Correctly handled non-existent document: error.DocumentNotFound
-✓ Correctly handled existing document: error.DocumentExists
+ Correctly handled non-existent document: error.DocumentNotFound
+ Correctly handled existing document: error.DocumentExists
 
 10. CLEANUP
 ----------------------------------------
-✓ Cleaned up 7 test documents
+ Cleaned up 7 test documents
 
 ================================================================================
                     DEMO COMPLETED SUCCESSFULLY!
 ================================================================================
-✓ All Couchbase operations working correctly
-✓ Client is production-ready
-✓ Integration tests passed
+ All Couchbase operations working correctly
+ Client is production-ready
+ Integration tests passed
 ================================================================================
 ```
 
@@ -253,36 +253,36 @@ open http://localhost:8091
 
 | Feature Category | Tests | Status |
 |------------------|-------|--------|
-| Connection | 2 | ✓ PASS |
-| KV Operations | 25 | ✓ PASS |
-| Subdocument | 6 | ✓ PASS |
-| Views | 5 | ✓ PASS |
-| Queries (N1QL) | 4 | ✓ PASS |
-| Counter | 4 | ✓ PASS |
-| CAS | 3 | ✓ PASS |
-| Durability | 2 | ✓ PASS |
-| Replicas | 2 | ✓ PASS |
-| Error Handling | 5 | ✓ PASS |
-| Edge Cases | 8 | ✓ PASS |
-| Options | 3 | ✓ PASS |
-| **TOTAL** | **69** | **✓ ALL PASS** |
+| Connection | 2 |  PASS |
+| KV Operations | 25 |  PASS |
+| Subdocument | 6 |  PASS |
+| Views | 5 |  PASS |
+| Queries (N1QL) | 4 |  PASS |
+| Counter | 4 |  PASS |
+| CAS | 3 |  PASS |
+| Durability | 2 |  PASS |
+| Replicas | 2 |  PASS |
+| Error Handling | 5 |  PASS |
+| Edge Cases | 8 |  PASS |
+| Options | 3 |  PASS |
+| **TOTAL** | **69** | ** ALL PASS** |
 
 ## Production Readiness
 
 The integration tests validate that the client is ready for production use with:
 
-- ✅ All document CRUD operations
-- ✅ Subdocument partial updates
-- ✅ View queries (map/reduce)
-- ✅ Basic N1QL queries
-- ✅ Counter operations
-- ✅ EXISTS checks
-- ✅ APPEND/PREPEND operations
-- ✅ CAS and durability
-- ✅ Replica reads
-- ✅ Error handling
-- ✅ Memory management
-- ✅ Resource cleanup
+-  All document CRUD operations
+-  Subdocument partial updates
+-  View queries (map/reduce)
+-  Basic N1QL queries
+-  Counter operations
+-  EXISTS checks
+-  APPEND/PREPEND operations
+-  CAS and durability
+-  Replica reads
+-  Error handling
+-  Memory management
+-  Resource cleanup
 
 ## Next Steps
 

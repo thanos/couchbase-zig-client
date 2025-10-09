@@ -229,26 +229,26 @@ Comprehensive coverage of all APIs (18 tests):
 
 | Feature | Unit | Integration | Coverage |
 |---------|------|-------------|----------|
-| Connection | - | ✓ | ✓ |
-| Get | ✓ | ✓ | ✓ |
-| Insert | ✓ | ✓ | ✓ |
-| Upsert | ✓ | ✓ | ✓ |
-| Replace | ✓ | ✓ | ✓ |
-| Remove | ✓ | ✓ | ✓ |
-| Increment | ✓ | ✓ | ✓ |
-| Decrement | ✓ | ✓ | ✓ |
-| Touch | ✓ | ✓ | ✓ |
-| Unlock | ✓ | - | ✓ |
-| CAS | ✓ | ✓ | ✓ |
-| Expiry | ✓ | ✓ | ✓ |
-| Flags | ✓ | ✓ | ✓ |
-| Durability | ✓ | ✓ | ✓ |
-| Replicas | ✓ | ✓ | ✓ |
-| Query | ✓ | ✓ | ✓ |
-| Error Handling | ✓ | ✓ | ✓ |
-| Options | ✓ | - | ✓ |
-| Batch Ops | - | ✓ | ✓ |
-| Edge Cases | - | - | ✓ |
+| Connection | - |  |  |
+| Get |  |  |  |
+| Insert |  |  |  |
+| Upsert |  |  |  |
+| Replace |  |  |  |
+| Remove |  |  |  |
+| Increment |  |  |  |
+| Decrement |  |  |  |
+| Touch |  |  |  |
+| Unlock |  | - |  |
+| CAS |  |  |  |
+| Expiry |  |  |  |
+| Flags |  |  |  |
+| Durability |  |  |  |
+| Replicas |  |  |  |
+| Query |  |  |  |
+| Error Handling |  |  |  |
+| Options |  | - |  |
+| Batch Ops | - |  |  |
+| Edge Cases | - | - |  |
 
 ## CI Integration
 

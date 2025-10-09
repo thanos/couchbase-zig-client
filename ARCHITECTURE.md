@@ -14,19 +14,19 @@ The library wraps the libcouchbase C library with an idiomatic Zig API that prov
 
 ```
 couchbase-zig-client/
-├── src/
-│   ├── root.zig           # Public API exports
-│   ├── c.zig              # C bindings via @cImport
-│   ├── client.zig         # Client connection and high-level API
-│   ├── operations.zig     # Operation implementations
-│   ├── error.zig          # Error type mappings
-│   └── types.zig          # Common types and enums
-├── examples/
-│   ├── basic.zig          # Basic CRUD operations
-│   ├── kv_operations.zig  # Comprehensive KV examples
-│   └── query.zig          # N1QL query examples
-├── build.zig              # Build configuration
-└── build.zig.zon          # Package metadata
+ src/
+    root.zig           # Public API exports
+    c.zig              # C bindings via @cImport
+    client.zig         # Client connection and high-level API
+    operations.zig     # Operation implementations
+    error.zig          # Error type mappings
+    types.zig          # Common types and enums
+ examples/
+    basic.zig          # Basic CRUD operations
+    kv_operations.zig  # Comprehensive KV examples
+    query.zig          # N1QL query examples
+ build.zig              # Build configuration
+ build.zig.zon          # Package metadata
 ```
 
 ## Design Patterns

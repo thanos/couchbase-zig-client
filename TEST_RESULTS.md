@@ -1,23 +1,23 @@
 # Test Results
 
-## All Tests Pass ✅
+## All Tests Pass 
 
 Successfully fixed the segfault issue and all test suites now pass.
 
 ### Test Summary
 
 ```bash
-# Unit Tests: PASS ✅
+# Unit Tests: PASS 
 zig build test-unit
 # 16 tests - all pass
 # No server required
 
-# Integration Tests: PASS ✅  
+# Integration Tests: PASS   
 zig build test-integration
 # 18 tests - all pass
 # Tests against live Couchbase at 127.0.0.1:8091
 
-# Coverage Tests: PASS ✅
+# Coverage Tests: PASS 
 zig build test-coverage  
 # 14 tests - all pass
 # Comprehensive API coverage tests

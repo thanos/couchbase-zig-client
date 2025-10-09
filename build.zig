@@ -121,6 +121,15 @@ pub fn build(b: *std.Build) void {
     demo_tests.linkSystemLibrary("couchbase");
     demo_tests.linkLibC();
 
+    const param_query_tests = b.addTest(.{
+        .root_source_file = b.path("tests/parameterized_query_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    param_query_tests.root_module.addImport("couchbase", couchbase_module);
+    param_query_tests.linkSystemLibrary("couchbase");
+    param_query_tests.linkLibC();
+
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const run_integration_tests = b.addRunArtifact(integration_tests);
@@ -128,6 +137,7 @@ pub fn build(b: *std.Build) void {
     const run_new_ops_tests = b.addRunArtifact(new_ops_tests);
     const run_view_tests = b.addRunArtifact(view_tests);
     const run_demo_tests = b.addRunArtifact(demo_tests);
+    const run_param_query_tests = b.addRunArtifact(param_query_tests);
 
     const test_step = b.step("test", "Run all tests");
     test_step.dependOn(&run_lib_unit_tests.step);
@@ -151,6 +161,9 @@ pub fn build(b: *std.Build) void {
 
     const demo_test_step = b.step("test-demo", "Run comprehensive demo test");
     demo_test_step.dependOn(&run_demo_tests.step);
+
+    const param_query_test_step = b.step("test-param-query", "Run parameterized query tests");
+    param_query_test_step.dependOn(&run_param_query_tests.step);
 
     const all_tests_step = b.step("test-all", "Run all test suites");
     all_tests_step.dependOn(&run_lib_unit_tests.step);

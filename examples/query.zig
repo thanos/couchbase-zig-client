@@ -40,8 +40,8 @@ pub fn main() !void {
     }
     std.debug.print("\n", .{});
 
-    // Query 1: Select all users
-    std.debug.print("2. Query: Select all users\n", .{});
+    // Query 1: Select all users (basic query)
+    std.debug.print("2. Basic Query: Select all users\n", .{});
     const query1 = "SELECT * FROM `default` WHERE type = 'user'";
     
     var result1 = client.query(allocator, query1, .{}) catch |err| {
@@ -63,28 +63,71 @@ pub fn main() !void {
     }
     std.debug.print("\n", .{});
 
-    // Query 2: Select users from New York
-    std.debug.print("3. Query: Select users from New York\n", .{});
-    const query2 = "SELECT name, age FROM `default` WHERE type = 'user' AND city = 'New York'";
+    // Query 2: Parameterized query with positional parameters
+    std.debug.print("3. Parameterized Query: Users by city (positional parameters)\n", .{});
+    const query2 = "SELECT name, age FROM `default` WHERE type = $1 AND city = $2";
+    const params = [_][]const u8{"user", "New York"};
     
-    var result2 = try client.query(allocator, query2, .{});
-    defer result2.deinit();
-
-    std.debug.print("   Found {d} rows:\n", .{result2.rows.len});
-    for (result2.rows, 0..) |row, i| {
-        std.debug.print("   Row {d}: {s}\n", .{ i + 1, row });
+    var options2 = try couchbase.operations.QueryOptions.withPositionalParams(allocator, &params);
+    defer if (options2.parameters) |p| {
+        for (p) |param| allocator.free(param);
+        allocator.free(p);
+    };
+    
+    var result2 = client.query(allocator, query2, options2) catch |err| {
+        std.debug.print("   Parameterized query failed: {}\n", .{err});
+        std.debug.print("   Note: This requires N1QL parameter support.\n\n", .{});
+    } else {
+        defer result2.deinit();
+        std.debug.print("   Found {d} users in New York:\n", .{result2.rows.len});
+        for (result2.rows, 0..) |row, i| {
+            std.debug.print("   Row {d}: {s}\n", .{ i, row });
+        }
     }
     std.debug.print("\n", .{});
 
-    // Query 3: Aggregate - Count users by city
-    std.debug.print("4. Query: Count users by city\n", .{});
-    const query3 = "SELECT city, COUNT(*) as count FROM `default` WHERE type = 'user' GROUP BY city";
+    // Query 3: Parameterized query with named parameters
+    std.debug.print("4. Parameterized Query: Users by age range (named parameters)\n", .{});
+    const query3 = "SELECT name, age, city FROM `default` WHERE type = $type AND age > $min_age";
     
-    var result3 = try client.query(allocator, query3, .{});
-    defer result3.deinit();
+    var named_params = std.StringHashMap([]const u8).init(allocator);
+    defer {
+        var iterator = named_params.iterator();
+        while (iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            allocator.free(entry.value_ptr.*);
+        }
+        named_params.deinit();
+    }
+    
+    try named_params.put(try allocator.dupe(u8, "type"), try allocator.dupe(u8, "user"));
+    try named_params.put(try allocator.dupe(u8, "min_age"), try allocator.dupe(u8, "25"));
 
-    std.debug.print("   Found {d} rows:\n", .{result3.rows.len});
-    for (result3.rows, 0..) |row, i| {
+    var options3 = couchbase.operations.QueryOptions{
+        .named_parameters = named_params,
+    };
+    
+    var result3 = client.query(allocator, query3, options3) catch |err| {
+        std.debug.print("   Named parameter query failed: {}\n", .{err});
+        std.debug.print("   Note: This requires N1QL parameter support.\n\n", .{});
+    } else {
+        defer result3.deinit();
+        std.debug.print("   Found {d} users over 25:\n", .{result3.rows.len});
+        for (result3.rows, 0..) |row, i| {
+            std.debug.print("   Row {d}: {s}\n", .{ i, row });
+        }
+    }
+    std.debug.print("\n", .{});
+
+    // Query 4: Aggregate - Count users by city
+    std.debug.print("5. Query: Count users by city\n", .{});
+    const query4 = "SELECT city, COUNT(*) as count FROM `default` WHERE type = 'user' GROUP BY city";
+    
+    var result4 = try client.query(allocator, query4, .{});
+    defer result4.deinit();
+
+    std.debug.print("   Found {d} rows:\n", .{result4.rows.len});
+    for (result4.rows, 0..) |row, i| {
         std.debug.print("   Row {d}: {s}\n", .{ i + 1, row });
     }
     std.debug.print("\n", .{});

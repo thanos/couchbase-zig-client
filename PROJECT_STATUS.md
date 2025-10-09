@@ -146,25 +146,25 @@ Applications that require:
 
 ```
 src/
-├── c.zig                # C bindings
-├── client.zig           # Client interface (195 lines)
-├── error.zig            # Error handling (101 lines)
-├── operations.zig       # KV operations (956 lines)
-├── root.zig             # Public API (40 lines)
-├── types.zig            # Type definitions (72 lines)
-└── views.zig            # View operations (173 lines)
+ c.zig                # C bindings
+ client.zig           # Client interface (195 lines)
+ error.zig            # Error handling (101 lines)
+ operations.zig       # KV operations (956 lines)
+ root.zig             # Public API (40 lines)
+ types.zig            # Type definitions (72 lines)
+ views.zig            # View operations (173 lines)
 
 tests/
-├── unit_test.zig            # 16 tests
-├── integration_test.zig     # 18 tests
-├── coverage_test.zig        # 14 tests
-├── new_operations_test.zig  # 10 tests
-└── view_test.zig            # 5 tests
+ unit_test.zig            # 16 tests
+ integration_test.zig     # 18 tests
+ coverage_test.zig        # 14 tests
+ new_operations_test.zig  # 10 tests
+ view_test.zig            # 5 tests
 
 examples/
-├── basic.zig
-├── kv_operations.zig
-└── query.zig
+ basic.zig
+ kv_operations.zig
+ query.zig
 ```
 
 ## Documentation
