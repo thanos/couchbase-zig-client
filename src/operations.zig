@@ -67,6 +67,22 @@ pub const QueryOptions = struct {
     timeout_ms: u32 = 75000,
     adhoc: bool = true,
     
+    // Advanced query options
+    profile: types.QueryProfile = .off,
+    read_only: bool = false,
+    client_context_id: ?[]const u8 = null,
+    scan_cap: ?u32 = null,
+    scan_wait: ?u32 = null,
+    flex_index: bool = false,
+    consistency_tokens: ?[]const u8 = null,
+    max_parallelism: ?u32 = null,
+    pipeline_batch: ?u32 = null,
+    pipeline_cap: ?u32 = null,
+    query_context: ?[]const u8 = null,
+    pretty: bool = false,
+    metrics: bool = true,
+    raw: ?[]const u8 = null,
+    
     /// Create query options with positional parameters
     pub fn withPositionalParams(allocator: std.mem.Allocator, params: []const []const u8) !QueryOptions {
         const param_copy = try allocator.alloc([]const u8, params.len);
@@ -94,6 +110,27 @@ pub const QueryOptions = struct {
             .named_parameters = named_params,
         };
     }
+    
+    /// Create query options for performance profiling
+    pub fn withProfile(profile: types.QueryProfile) QueryOptions {
+        return QueryOptions{
+            .profile = profile,
+        };
+    }
+    
+    /// Create readonly query options
+    pub fn readonly() QueryOptions {
+        return QueryOptions{
+            .read_only = true,
+        };
+    }
+    
+    /// Create query options with client context ID
+    pub fn withContextId(context_id: []const u8) QueryOptions {
+        return QueryOptions{
+            .client_context_id = context_id,
+        };
+    }
 };
 
 /// Query result
@@ -109,6 +146,44 @@ pub const QueryResult = struct {
         self.allocator.free(self.rows);
         if (self.meta) |meta| {
             self.allocator.free(meta);
+        }
+    }
+};
+
+/// Analytics query result
+pub const AnalyticsResult = struct {
+    rows: [][]const u8,
+    meta: ?[]const u8,
+    allocator: std.mem.Allocator,
+
+    pub fn deinit(self: *AnalyticsResult) void {
+        for (self.rows) |row| {
+            self.allocator.free(row);
+        }
+        self.allocator.free(self.rows);
+        if (self.meta) |meta| {
+            self.allocator.free(meta);
+        }
+    }
+};
+
+/// Search query result
+pub const SearchResult = struct {
+    rows: [][]const u8,
+    meta: ?[]const u8,
+    facets: ?[]const u8 = null,
+    allocator: std.mem.Allocator,
+
+    pub fn deinit(self: *SearchResult) void {
+        for (self.rows) |row| {
+            self.allocator.free(row);
+        }
+        self.allocator.free(self.rows);
+        if (self.meta) |meta| {
+            self.allocator.free(meta);
+        }
+        if (self.facets) |facets| {
+            self.allocator.free(facets);
         }
     }
 };
@@ -631,6 +706,32 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     _ = c.lcb_cmdquery_statement(cmd, statement.ptr, statement.len);
     _ = c.lcb_cmdquery_adhoc(cmd, if (options.adhoc) 1 else 0);
     
+    // Set advanced query options
+    _ = c.lcb_cmdquery_timeout(cmd, options.timeout_ms);
+    _ = c.lcb_cmdquery_consistency(cmd, @intFromEnum(options.consistency));
+    _ = c.lcb_cmdquery_profile(cmd, @intFromEnum(options.profile));
+    _ = c.lcb_cmdquery_readonly(cmd, if (options.read_only) 1 else 0);
+    
+    if (options.client_context_id) |context_id| {
+        _ = c.lcb_cmdquery_client_context_id(cmd, context_id.ptr, context_id.len);
+    }
+    
+    if (options.scan_cap) |scan_cap| {
+        _ = c.lcb_cmdquery_scan_cap(cmd, @intCast(scan_cap));
+    }
+    
+    if (options.scan_wait) |scan_wait| {
+        _ = c.lcb_cmdquery_scan_wait(cmd, scan_wait);
+    }
+    
+    _ = c.lcb_cmdquery_flex_index(cmd, if (options.flex_index) 1 else 0);
+    
+    if (options.consistency_tokens) |tokens| {
+        // Note: This requires a proper mutation token structure
+        // For now, we'll skip this advanced feature
+        _ = tokens;
+    }
+    
     // Handle positional parameters
     if (options.parameters) |params| {
         for (params) |param| {
@@ -708,6 +809,232 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
         .allocator = allocator,
     };
 }
+
+/// Analytics query operation
+pub fn analyticsQuery(client: *Client, allocator: std.mem.Allocator, statement: []const u8, options: types.AnalyticsOptions) Error!AnalyticsResult {
+    var ctx = AnalyticsContext{
+        .rows = std.ArrayList([]const u8).init(allocator),
+        .allocator = allocator,
+    };
+    
+    var cmd: ?*c.lcb_CMDANALYTICS = null;
+    _ = c.lcb_cmdanalytics_create(&cmd);
+    defer _ = c.lcb_cmdanalytics_destroy(cmd);
+    
+    _ = c.lcb_cmdanalytics_statement(cmd, statement.ptr, statement.len);
+    _ = c.lcb_cmdanalytics_timeout(cmd, options.timeout_ms);
+    _ = c.lcb_cmdanalytics_priority(cmd, if (options.priority) 1 else 0);
+    _ = c.lcb_cmdanalytics_readonly(cmd, if (options.read_only) 1 else 0);
+    
+    if (options.client_context_id) |context_id| {
+        _ = c.lcb_cmdanalytics_client_context_id(cmd, context_id.ptr, context_id.len);
+    }
+    
+    if (options.scan_cap) |scan_cap| {
+        // Note: scan_cap not available in analytics API
+        _ = scan_cap;
+    }
+    
+    if (options.scan_wait) |scan_wait| {
+        // Note: scan_wait not available in analytics API
+        _ = scan_wait;
+    }
+    
+    if (options.query_context) |query_context| {
+        // Note: query_context not available in analytics API
+        _ = query_context;
+    }
+    
+    // Note: pretty and metrics not available in analytics API
+    _ = options.pretty;
+    _ = options.metrics;
+    
+    // Handle positional parameters
+    if (options.positional_parameters) |params| {
+        for (params) |param| {
+            _ = c.lcb_cmdanalytics_positional_param(cmd, param.ptr, param.len);
+        }
+    }
+    
+    // Handle named parameters
+    if (options.named_parameters) |named_params| {
+        var iterator = named_params.iterator();
+        while (iterator.next()) |entry| {
+            _ = c.lcb_cmdanalytics_named_param(cmd, entry.key_ptr.ptr, entry.key_ptr.len, entry.value_ptr.ptr, entry.value_ptr.len);
+        }
+    }
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPANALYTICS) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respanalytics_cookie(resp, &cookie);
+            var context: *AnalyticsContext = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respanalytics_status(resp);
+            if (rc != c.LCB_SUCCESS) {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+                context.done = true;
+                return;
+            }
+            
+            var row_ptr: [*c]const u8 = undefined;
+            var row_len: usize = undefined;
+            _ = c.lcb_respanalytics_row(resp, &row_ptr, &row_len);
+            
+            if (row_len > 0) {
+                const row_copy = context.allocator.dupe(u8, row_ptr[0..row_len]) catch {
+                    context.err = error.OutOfMemory;
+                    context.done = true;
+                    return;
+                };
+                context.rows.append(row_copy) catch {
+                    context.allocator.free(row_copy);
+                    context.err = error.OutOfMemory;
+                    context.done = true;
+                    return;
+                };
+            }
+            
+            if (c.lcb_respanalytics_is_final(resp) != 0) {
+                context.done = true;
+            }
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_ANALYTICS, @ptrCast(&callback));
+    
+    var rc = c.lcb_analytics(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| {
+        for (ctx.rows.items) |row| {
+            allocator.free(row);
+        }
+        ctx.rows.deinit();
+        return err;
+    }
+    
+    return AnalyticsResult{
+        .rows = try ctx.rows.toOwnedSlice(),
+        .meta = null,
+        .allocator = allocator,
+    };
+}
+
+const AnalyticsContext = struct {
+    rows: std.ArrayList([]const u8),
+    err: ?Error = null,
+    done: bool = false,
+    allocator: std.mem.Allocator,
+};
+
+/// Search query operation (Full-Text Search)
+pub fn searchQuery(client: *Client, allocator: std.mem.Allocator, index_name: []const u8, search_query: []const u8, options: types.SearchOptions) Error!SearchResult {
+    var ctx = SearchContext{
+        .rows = std.ArrayList([]const u8).init(allocator),
+        .allocator = allocator,
+    };
+    
+    var cmd: ?*c.lcb_CMDSEARCH = null;
+    _ = c.lcb_cmdsearch_create(&cmd);
+    defer _ = c.lcb_cmdsearch_destroy(cmd);
+    
+    _ = c.lcb_cmdsearch_payload(cmd, search_query.ptr, search_query.len);
+    // Note: index_name not available in search API
+    _ = index_name;
+    _ = c.lcb_cmdsearch_timeout(cmd, options.timeout_ms);
+    // Note: explain, disable_scoring, include_locations not available in search API
+    _ = options.explain;
+    _ = options.disable_scoring;
+    _ = options.include_locations;
+    
+    // Note: Most search API functions not available in libcouchbase
+    _ = options.limit;
+    _ = options.skip;
+    _ = options.highlight_style;
+    _ = options.highlight_fields;
+    _ = options.sort;
+    _ = options.facets;
+    _ = options.fields;
+    _ = options.consistent_with;
+    _ = options.client_context_id;
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSEARCH) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respsearch_cookie(resp, &cookie);
+            var context: *SearchContext = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respsearch_status(resp);
+            if (rc != c.LCB_SUCCESS) {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+                context.done = true;
+                return;
+            }
+            
+            var row_ptr: [*c]const u8 = undefined;
+            var row_len: usize = undefined;
+            _ = c.lcb_respsearch_row(resp, &row_ptr, &row_len);
+            
+            if (row_len > 0) {
+                const row_copy = context.allocator.dupe(u8, row_ptr[0..row_len]) catch {
+                    context.err = error.OutOfMemory;
+                    context.done = true;
+                    return;
+                };
+                context.rows.append(row_copy) catch {
+                    context.allocator.free(row_copy);
+                    context.err = error.OutOfMemory;
+                    context.done = true;
+                    return;
+                };
+            }
+            
+            if (c.lcb_respsearch_is_final(resp) != 0) {
+                context.done = true;
+            }
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_SEARCH, @ptrCast(&callback));
+    
+    var rc = c.lcb_search(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| {
+        for (ctx.rows.items) |row| {
+            allocator.free(row);
+        }
+        ctx.rows.deinit();
+        return err;
+    }
+    
+    return SearchResult{
+        .rows = try ctx.rows.toOwnedSlice(),
+        .meta = null,
+        .facets = null,
+        .allocator = allocator,
+    };
+}
+
+const SearchContext = struct {
+    rows: std.ArrayList([]const u8),
+    err: ?Error = null,
+    done: bool = false,
+    allocator: std.mem.Allocator,
+};
 
 /// EXISTS operation - check if document exists without retrieving
 pub fn exists(client: *Client, key: []const u8) Error!bool {

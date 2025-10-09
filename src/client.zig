@@ -191,4 +191,25 @@ pub const Client = struct {
         const views = @import("views.zig");
         return views.viewQuery(self, allocator, design_doc, view_name, options);
     }
+
+    /// Execute an analytics query
+    pub fn analyticsQuery(
+        self: *Client,
+        allocator: std.mem.Allocator,
+        statement: []const u8,
+        options: types.AnalyticsOptions,
+    ) Error!operations.AnalyticsResult {
+        return operations.analyticsQuery(self, allocator, statement, options);
+    }
+
+    /// Execute a search query (Full-Text Search)
+    pub fn searchQuery(
+        self: *Client,
+        allocator: std.mem.Allocator,
+        index_name: []const u8,
+        search_query: []const u8,
+        options: types.SearchOptions,
+    ) Error!operations.SearchResult {
+        return operations.searchQuery(self, allocator, index_name, search_query, options);
+    }
 };

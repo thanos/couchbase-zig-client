@@ -1,6 +1,6 @@
 .{
     .name = .couchbase,
-    .version = "0.3.1",
+    .version = "0.3.2",
     .minimum_zig_version = "0.11.0",
     .fingerprint = 0xf2ae8451617f5d98,
     
