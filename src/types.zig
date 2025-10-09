@@ -61,6 +61,58 @@ pub const ScanConsistency = enum(c_uint) {
     request_plus = 1,
 };
 
+/// Query profile mode
+pub const QueryProfile = enum(c_uint) {
+    off = 0,
+    phases = 1,
+    timings = 2,
+};
+
+/// Query consistency mode
+pub const QueryConsistency = enum(c_uint) {
+    not_bounded = 0,
+    request_plus = 1,
+    statement_plus = 2,
+};
+
+/// Analytics query options
+pub const AnalyticsOptions = struct {
+    timeout_ms: u32 = 300000,
+    priority: bool = false,
+    client_context_id: ?[]const u8 = null,
+    read_only: bool = false,
+    max_parallelism: ?u32 = null,
+    pipeline_batch: ?u32 = null,
+    pipeline_cap: ?u32 = null,
+    scan_cap: ?u32 = null,
+    scan_wait: ?u32 = null,
+    scan_consistency: ?[]const u8 = null,
+    query_context: ?[]const u8 = null,
+    pretty: bool = false,
+    metrics: bool = true,
+    raw: ?[]const u8 = null,
+    positional_parameters: ?[]const []const u8 = null,
+    named_parameters: ?std.StringHashMap([]const u8) = null,
+};
+
+/// Search query options
+pub const SearchOptions = struct {
+    timeout_ms: u32 = 75000,
+    limit: ?u32 = null,
+    skip: ?u32 = null,
+    explain: bool = false,
+    highlight_style: ?[]const u8 = null,
+    highlight_fields: ?[]const []const u8 = null,
+    sort: ?[]const []const u8 = null,
+    facets: ?[]const []const u8 = null,
+    fields: ?[]const []const u8 = null,
+    disable_scoring: bool = false,
+    include_locations: bool = false,
+    consistent_with: ?[]const u8 = null,
+    client_context_id: ?[]const u8 = null,
+    raw: ?[]const u8 = null,
+};
+
 /// View query options
 pub const ViewQueryOptions = struct {
     start_key: ?[]const u8 = null,

@@ -20,6 +20,14 @@ pub const ViewStale = views.ViewStale;
 pub const Durability = types.Durability;
 pub const DurabilityLevel = types.DurabilityLevel;
 
+// Advanced query types
+pub const QueryProfile = types.QueryProfile;
+pub const QueryConsistency = types.QueryConsistency;
+pub const AnalyticsOptions = types.AnalyticsOptions;
+pub const SearchOptions = types.SearchOptions;
+pub const AnalyticsResult = operations.AnalyticsResult;
+pub const SearchResult = operations.SearchResult;
+
 // Test configuration from environment variables
 pub fn getTestConfig() TestConfig {
     return TestConfig{

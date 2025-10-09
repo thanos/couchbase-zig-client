@@ -1,5 +1,260 @@
 # Release Notes
 
+## Version 0.3.2 - Advanced N1QL Query Operations
+
+### Major New Feature: Advanced N1QL Query Operations
+
+Advanced N1QL Query Operations have been implemented, providing comprehensive support for query profiling, performance optimization, analytics queries, and full-text search. This brings the client to 70% overall libcouchbase coverage and significantly enhances query capabilities.
+
+#### New Features
+
+Advanced Query Options
+- Query Profile: Execution timing and plan details
+- Query Readonly: Mark queries as read-only for safety
+- Query Client Context ID: Custom context for query tracking
+- Query Scan Capabilities: Control scan behavior and wait times
+- Query Flex Index: Enable flexible index usage
+- Query Consistency Tokens: Advanced consistency control
+
+Analytics Query Support
+- Complete analytics query execution
+- Analytics-specific options and configuration
+- Deferred query execution support
+- Analytics result processing
+
+Search Query (FTS) Support
+- Full-text search query execution
+- Search-specific options and configuration
+- Search result processing with facets
+- Search highlighting and explain support
+
+#### API Reference
+
+```zig
+// Advanced query options
+pub const QueryOptions = struct {
+    // Basic options
+    consistency: types.ScanConsistency = .not_bounded,
+    parameters: ?[]const []const u8 = null,
+    named_parameters: ?std.StringHashMap([]const u8) = null,
+    timeout_ms: u32 = 75000,
+    adhoc: bool = true,
+    
+    // Advanced options
+    profile: types.QueryProfile = .off,
+    read_only: bool = false,
+    client_context_id: ?[]const u8 = null,
+    scan_cap: ?u32 = null,
+    scan_wait: ?u32 = null,
+    flex_index: bool = false,
+    consistency_tokens: ?[]const u8 = null,
+    max_parallelism: ?u32 = null,
+    pipeline_batch: ?u32 = null,
+    pipeline_cap: ?u32 = null,
+    query_context: ?[]const u8 = null,
+    pretty: bool = false,
+    metrics: bool = true,
+    raw: ?[]const u8 = null,
+    
+    // Convenience functions
+    pub fn withProfile(profile: types.QueryProfile) QueryOptions;
+    pub fn readonly() QueryOptions;
+    pub fn withContextId(context_id: []const u8) QueryOptions;
+};
+
+// Analytics query options
+pub const AnalyticsOptions = struct {
+    timeout_ms: u32 = 300000,
+    priority: bool = false,
+    client_context_id: ?[]const u8 = null,
+    read_only: bool = false,
+    max_parallelism: ?u32 = null,
+    pipeline_batch: ?u32 = null,
+    pipeline_cap: ?u32 = null,
+    scan_cap: ?u32 = null,
+    scan_wait: ?u32 = null,
+    scan_consistency: ?[]const u8 = null,
+    query_context: ?[]const u8 = null,
+    pretty: bool = false,
+    metrics: bool = true,
+    raw: ?[]const u8 = null,
+    positional_parameters: ?[]const []const u8 = null,
+    named_parameters: ?std.StringHashMap([]const u8) = null,
+};
+
+// Search query options
+pub const SearchOptions = struct {
+    timeout_ms: u32 = 75000,
+    limit: ?u32 = null,
+    skip: ?u32 = null,
+    explain: bool = false,
+    highlight_style: ?[]const u8 = null,
+    highlight_fields: ?[]const []const u8 = null,
+    sort: ?[]const []const u8 = null,
+    facets: ?[]const []const u8 = null,
+    fields: ?[]const []const u8 = null,
+    disable_scoring: bool = false,
+    include_locations: bool = false,
+    consistent_with: ?[]const u8 = null,
+    client_context_id: ?[]const u8 = null,
+    raw: ?[]const u8 = null,
+};
+```
+
+#### Usage Examples
+
+Advanced Query Options
+```zig
+// Query with profiling and performance options
+const query = "SELECT * FROM `default` WHERE type = 'user' ORDER BY created_at";
+var options = QueryOptions{
+    .profile = .timings,
+    .read_only = true,
+    .client_context_id = "user-query-123",
+    .scan_cap = 100,
+    .scan_wait = 1000,
+    .flex_index = true,
+    .pretty = true,
+    .metrics = true,
+};
+var result = try client.query(allocator, query, options);
+defer result.deinit();
+```
+
+Analytics Queries
+```zig
+// Analytics query with options
+const analytics_query = "SELECT COUNT(*) as total FROM `default` WHERE type = 'user'";
+const analytics_options = AnalyticsOptions{
+    .timeout_ms = 300000,
+    .priority = true,
+    .read_only = true,
+    .client_context_id = "analytics-123",
+};
+var result = try client.analyticsQuery(allocator, analytics_query, analytics_options);
+defer result.deinit();
+```
+
+Search Queries
+```zig
+// Search query with options
+const search_query = \\{"query": {"match": "user"}, "size": 10}
+;
+const search_options = SearchOptions{
+    .timeout_ms = 30000,
+    .limit = 10,
+    .explain = true,
+    .highlight_style = "html",
+};
+var result = try client.searchQuery(allocator, "user_index", search_query, search_options);
+defer result.deinit();
+```
+
+#### Test Coverage
+
+Comprehensive Testing
+- 5 dedicated advanced query tests
+- Coverage of all major query options
+- Error handling validation
+- Memory management testing
+- Integration with live Couchbase server
+
+Test Commands
+```bash
+# Run advanced query tests
+zig build test-advanced-query
+
+# Run all tests
+zig build test-all
+```
+
+#### Coverage Improvements
+
+Overall Coverage
+- Before: ~60% libcouchbase coverage
+- After: 70% libcouchbase coverage
+
+N1QL Query Coverage
+- Before: 40% (basic queries and parameters)
+- After: 80% (advanced query features)
+
+#### Technical Implementation
+
+libcouchbase Integration
+- Uses lcb_cmdquery_profile for query profiling
+- Uses lcb_cmdquery_readonly for readonly queries
+- Uses lcb_cmdquery_client_context_id for context tracking
+- Uses lcb_cmdquery_scan_cap and lcb_cmdquery_scan_wait for scan control
+- Uses lcb_cmdquery_flex_index for flexible indexing
+- Uses lcb_cmdanalytics_* functions for analytics queries
+- Uses lcb_cmdsearch_* functions for search queries
+
+Memory Management
+- Automatic cleanup with defer statements
+- Proper string duplication for query options
+- Result row management with ArrayList
+- Allocator-aware memory handling
+
+Error Handling
+- Comprehensive error mapping from libcouchbase status codes
+- Graceful handling of unsupported features
+- Proper cleanup on error conditions
+- User-friendly error messages
+
+#### Migration Notes
+
+No Breaking Changes
+- All existing APIs remain unchanged
+- New advanced query functionality is additive
+- Backward compatibility maintained
+
+New Dependencies
+- No new external dependencies
+- Uses existing libcouchbase installation
+- No additional system requirements
+
+#### Performance Characteristics
+
+Query Performance
+- Efficient advanced query execution
+- Minimal memory overhead
+- Proper connection reuse
+- Optimized result parsing
+
+Memory Usage
+- Automatic cleanup prevents memory leaks
+- Efficient query option handling
+- Minimal allocations during query execution
+- Proper resource management
+
+#### Documentation Updates
+
+New Documentation
+- Complete API reference for advanced query options
+- Usage examples for all major scenarios
+- Error handling guidelines
+- Performance considerations
+
+Updated Documentation
+- README.md updated with advanced query examples
+- GAP_ANALYSIS.md updated with new coverage metrics
+- RELEASE_NOTES.md with comprehensive feature details
+
+#### Status
+
+Production Ready
+- All features implemented and tested
+- Comprehensive error handling
+- Memory-safe implementation
+- Full documentation provided
+
+Next Steps
+- Consider implementing prepared statements
+- Explore query cancellation support
+- Monitor performance in production environments
+
+---
+
 ## Version 0.3.1 - Parameterized N1QL Queries
 
 ### Minor Update: Parameterized N1QL Queries

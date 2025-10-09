@@ -160,12 +160,51 @@ _ = try client.upsert("doc-id", content, .{
 ### Queries
 
 ```zig
+// Basic N1QL query
 const query = "SELECT * FROM `default` WHERE type = $1";
 var result = try client.query(allocator, query, .{
     .consistency = .request_plus,
     .adhoc = true,
 });
 defer result.deinit();
+
+// Advanced query with profiling and performance options
+const advanced_query = "SELECT * FROM `default` WHERE type = 'user' ORDER BY created_at";
+var options = QueryOptions{
+    .profile = .timings,
+    .read_only = true,
+    .client_context_id = "user-query-123",
+    .scan_cap = 100,
+    .scan_wait = 1000,
+    .flex_index = true,
+    .pretty = true,
+    .metrics = true,
+};
+var advanced_result = try client.query(allocator, advanced_query, options);
+defer advanced_result.deinit();
+
+// Analytics query
+const analytics_query = "SELECT COUNT(*) as total FROM `default` WHERE type = 'user'";
+const analytics_options = AnalyticsOptions{
+    .timeout_ms = 300000,
+    .priority = true,
+    .read_only = true,
+    .client_context_id = "analytics-123",
+};
+var analytics_result = try client.analyticsQuery(allocator, analytics_query, analytics_options);
+defer analytics_result.deinit();
+
+// Search query (Full-Text Search)
+const search_query = \\{"query": {"match": "user"}, "size": 10}
+;
+const search_options = SearchOptions{
+    .timeout_ms = 30000,
+    .limit = 10,
+    .explain = true,
+    .highlight_style = "html",
+};
+var search_result = try client.searchQuery(allocator, "user_index", search_query, search_options);
+defer search_result.deinit();
 
 for (result.rows) |row| {
     std.debug.print("Row: {s}\n", .{row});
