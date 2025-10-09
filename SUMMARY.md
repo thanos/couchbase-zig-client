@@ -1,6 +1,6 @@
 # Couchbase Zig Client - Implementation Summary
 
-## ✅ Completed Features
+##  Completed Features
 
 This Zig wrapper for libcouchbase has been successfully implemented with comprehensive functionality.
 
@@ -50,28 +50,28 @@ This Zig wrapper for libcouchbase has been successfully implemented with compreh
 
 ## Implemented Operations
 
-### Key-Value Operations ✅
-- ✅ Get (with CAS)
-- ✅ Get from replica (any/all/index modes)
-- ✅ Insert (create only)
-- ✅ Upsert (create or replace)
-- ✅ Replace (update only)
-- ✅ Remove (delete)
-- ✅ Increment counter
-- ✅ Decrement counter
-- ✅ Touch (update TTL)
-- ✅ Unlock
+### Key-Value Operations 
+-  Get (with CAS)
+-  Get from replica (any/all/index modes)
+-  Insert (create only)
+-  Upsert (create or replace)
+-  Replace (update only)
+-  Remove (delete)
+-  Increment counter
+-  Decrement counter
+-  Touch (update TTL)
+-  Unlock
 
-### Advanced Features ✅
-- ✅ CAS (Compare and Swap) support
-- ✅ Durability levels (none, majority, persist)
-- ✅ Expiration/TTL support
-- ✅ Document flags
-- ✅ Replica reads
-- ✅ N1QL queries with consistency options
-- ✅ Query result streaming
+### Advanced Features 
+-  CAS (Compare and Swap) support
+-  Durability levels (none, majority, persist)
+-  Expiration/TTL support
+-  Document flags
+-  Replica reads
+-  N1QL queries with consistency options
+-  Query result streaming
 
-### Error Handling ✅
+### Error Handling 
 All error codes properly mapped:
 - Document errors (NotFound, Exists, Locked)
 - Network errors (Timeout, ConnectionFailed)
@@ -193,15 +193,15 @@ SubdocOptions { cas, expiry, durability, access_deleted } [stub]
 
 These have API stubs but need full implementation:
 
-- 🚧 Subdocument operations (lookupIn, mutateIn)
-- 🚧 Ping operation
-- 🚧 Diagnostics operation
-- 🚧 Analytics queries
-- 🚧 Full-text search
-- 🚧 Views
-- 🚧 Transactions API
-- 🚧 Batch operations
-- 🚧 Async/await support
+-  Subdocument operations (lookupIn, mutateIn)
+-  Ping operation
+-  Diagnostics operation
+-  Analytics queries
+-  Full-text search
+-  Views
+-  Transactions API
+-  Batch operations
+-  Async/await support
 
 ## Testing Requirements
 
@@ -261,13 +261,13 @@ pub fn main() !void {
 
 This is a **complete, production-ready wrapper** for the most commonly used Couchbase operations. The library successfully wraps libcouchbase with:
 
-- ✅ Idiomatic Zig API
-- ✅ Type safety and memory safety
-- ✅ Comprehensive error handling
-- ✅ Full KV operation support
-- ✅ N1QL query support
-- ✅ Durability and CAS support
-- ✅ Well-documented with examples
-- ✅ Successfully compiles with Zig 0.14.0
+-  Idiomatic Zig API
+-  Type safety and memory safety
+-  Comprehensive error handling
+-  Full KV operation support
+-  N1QL query support
+-  Durability and CAS support
+-  Well-documented with examples
+-  Successfully compiles with Zig 0.14.0
 
 The codebase is clean, well-structured, and ready for use or further extension!
