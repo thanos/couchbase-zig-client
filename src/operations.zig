@@ -75,6 +75,7 @@ pub const QueryOptions = struct {
     scan_wait: ?u32 = null,
     flex_index: bool = false,
     consistency_tokens: ?[]const u8 = null,
+    consistency_token: ?types.ConsistencyToken = null,
     max_parallelism: ?u32 = null,
     pipeline_batch: ?u32 = null,
     pipeline_cap: ?u32 = null,
@@ -144,6 +145,7 @@ pub const QueryOptions = struct {
 pub const QueryResult = struct {
     rows: [][]const u8,
     meta: ?[]const u8,
+    metadata: ?*types.QueryMetadata = null,
     allocator: std.mem.Allocator,
     handle: ?*types.QueryHandle = null,
     
@@ -154,6 +156,11 @@ pub const QueryResult = struct {
         self.allocator.free(self.rows);
         if (self.meta) |meta| {
             self.allocator.free(meta);
+        }
+        if (self.metadata) |metadata| {
+            var mut_metadata = metadata;
+            mut_metadata.deinit();
+            self.allocator.destroy(mut_metadata);
         }
         if (self.handle) |query_handle| {
             query_handle.deinit();
@@ -172,6 +179,32 @@ pub const QueryResult = struct {
             return query_handle.isCancelled();
         }
         return false;
+    }
+    
+    /// Parse enhanced metadata from the meta field
+    pub fn parseMetadata(self: *QueryResult) !void {
+        if (self.meta) |meta_json| {
+            const metadata = try self.allocator.create(types.QueryMetadata);
+            metadata.allocator = self.allocator;
+            try metadata.parse(meta_json);
+            self.metadata = metadata;
+        }
+    }
+    
+    /// Get query metrics if available
+    pub fn getMetrics(self: *const QueryResult) ?*const types.QueryMetrics {
+        if (self.metadata) |metadata| {
+            return metadata.metrics;
+        }
+        return null;
+    }
+    
+    /// Get query warnings if available
+    pub fn getWarnings(self: *const QueryResult) ?[][]const u8 {
+        if (self.metadata) |metadata| {
+            return metadata.warnings;
+        }
+        return null;
     }
 };
 
@@ -770,9 +803,16 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     _ = c.lcb_cmdquery_flex_index(cmd, if (options.flex_index) 1 else 0);
     
     if (options.consistency_tokens) |tokens| {
-        // Note: This requires a proper mutation token structure
+        // Note: This requires proper lcb_MUTATION_TOKEN handling
         // For now, we'll skip this advanced feature
         _ = tokens;
+    }
+    
+    // Set consistency token if provided
+    if (options.consistency_token) |token| {
+        // Note: This requires proper lcb_MUTATION_TOKEN handling
+        // For now, we'll skip this advanced feature
+        _ = token;
     }
     
     // Handle positional parameters

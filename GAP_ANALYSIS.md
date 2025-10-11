@@ -4,7 +4,16 @@ Version 0.3.0 - October 6, 2025
 
 This document compares the Zig wrapper implementation against the full libcouchbase C library to identify missing features.
 
-## Recent Updates (v0.3.4)
+## Recent Updates (v0.3.5)
+
+### Completed Features
+- Enhanced Query Metadata: Comprehensive metadata parsing and access
+- QueryMetrics Implementation: Detailed performance metrics with parsing
+- ConsistencyToken Implementation: Complete consistency token support
+- Enhanced Observability: Better query debugging and performance analysis
+- Memory-Safe Metadata: Proper lifecycle management for metadata structures
+
+### Previous Updates (v0.3.4)
 
 ### Completed Features
 - Query Cancellation API: Complete query cancellation implementation
@@ -189,7 +198,7 @@ Based on the [libcouchbase repository](https://github.com/couchbase/libcouchbase
 | Query Client Context ID | [YES] | [YES] | Complete (v0.3.2) |
 | Query Scan Cap/Wait | [YES] | [YES] | Complete (v0.3.2) |
 | Query Flex Index | [YES] | [YES] | Complete (v0.3.2) |
-| Query Consistency Tokens | [YES] | [PARTIAL] | Stubbed (v0.3.2) |
+| Query Consistency Tokens | [YES] | [YES] | Complete (v0.3.5) |
 | Prepared Statements | [YES] | [YES] | Complete (v0.3.3) |
 | Query Cancel | [YES] | [YES] | Complete (v0.3.4) |
 | Analytics Query | [YES] | [YES] | Complete (v0.3.2) |
@@ -609,7 +618,7 @@ libcouchbase C library includes extensive tests for:
 
 ### Estimated Completion
 
-- **Current**: ~85% of libcouchbase functionality
+- **Current**: ~87% of libcouchbase functionality
 - **Core Operations**: ~92% complete
 - **Query Operations**: ~100% complete (all N1QL features implemented)
 - **Advanced Features**: ~25% complete

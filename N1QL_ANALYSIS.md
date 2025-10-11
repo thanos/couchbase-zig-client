@@ -1,6 +1,6 @@
 # N1QL Query Implementation Analysis and Plan
 
-## Current Implementation Status (v0.3.4)
+## Current Implementation Status (v0.3.5)
 
 ### ✅ Implemented Features (Complete)
 
@@ -59,12 +59,13 @@
 
 ### ⚠️ Partially Implemented Features
 
-#### Query Metadata
-- **Query Metadata Parsing**: Basic meta field parsing
-- **Execution Statistics**: Basic metrics available
-- **Query Plan**: Basic plan information available
+#### Query Metadata (Complete)
+- **Query Metadata Parsing**: Complete with comprehensive JSON parsing
+- **Execution Statistics**: Complete with detailed QueryMetrics struct
+- **Query Plan**: Complete with signature and profile information
+- **Enhanced Observability**: Complete with warnings, context ID, and request ID
 
-## Current Coverage Assessment (v0.3.4)
+## Current Coverage Assessment (v0.3.5)
 
 | Feature | Status | Version | Coverage |
 |---------|--------|---------|----------|
@@ -77,9 +78,9 @@
 | Query Cancellation | ✅ Complete | v0.3.4 | 100% |
 | Analytics Queries | ✅ Complete | v0.3.2 | 100% |
 | Search Queries (FTS) | ✅ Complete | v0.3.2 | 100% |
-| Enhanced Metadata | ⚠️ Partial | v0.3.4 | 70% |
+| Enhanced Metadata | ✅ Complete | v0.3.5 | 100% |
 
-**Current N1QL Coverage: ~97%**  
+**Current N1QL Coverage: ~100%**  
 **Target N1QL Coverage: ~100%**
 
 ## Test Coverage Status

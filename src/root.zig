@@ -35,6 +35,11 @@ pub const DurabilityLevel = types.DurabilityLevel;
     // Query cancellation types
     pub const QueryHandle = types.QueryHandle;
     pub const QueryCancellationOptions = types.QueryCancellationOptions;
+    
+    // Enhanced query metadata types
+    pub const QueryMetadata = types.QueryMetadata;
+    pub const QueryMetrics = types.QueryMetrics;
+    pub const ConsistencyToken = types.ConsistencyToken;
 
 // Test configuration from environment variables
 pub fn getTestConfig() TestConfig {

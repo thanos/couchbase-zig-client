@@ -157,6 +157,15 @@ pub fn build(b: *std.Build) void {
     query_cancellation_tests.linkSystemLibrary("couchbase");
     query_cancellation_tests.linkLibC();
 
+    const enhanced_metadata_tests = b.addTest(.{
+        .root_source_file = b.path("tests/enhanced_metadata_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    enhanced_metadata_tests.root_module.addImport("couchbase", couchbase_module);
+    enhanced_metadata_tests.linkSystemLibrary("couchbase");
+    enhanced_metadata_tests.linkLibC();
+
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const run_integration_tests = b.addRunArtifact(integration_tests);
@@ -168,6 +177,7 @@ pub fn build(b: *std.Build) void {
     const run_advanced_query_tests = b.addRunArtifact(advanced_query_tests);
     const run_prepared_statement_tests = b.addRunArtifact(prepared_statement_tests);
     const run_query_cancellation_tests = b.addRunArtifact(query_cancellation_tests);
+    const run_enhanced_metadata_tests = b.addRunArtifact(enhanced_metadata_tests);
 
     const test_step = b.step("test", "Run all tests");
     test_step.dependOn(&run_lib_unit_tests.step);
@@ -204,6 +214,9 @@ pub fn build(b: *std.Build) void {
     const query_cancellation_test_step = b.step("test-query-cancellation", "Run query cancellation tests");
     query_cancellation_test_step.dependOn(&run_query_cancellation_tests.step);
 
+    const enhanced_metadata_test_step = b.step("test-enhanced-metadata", "Run enhanced metadata tests");
+    enhanced_metadata_test_step.dependOn(&run_enhanced_metadata_tests.step);
+
     const all_tests_step = b.step("test-all", "Run all test suites");
     all_tests_step.dependOn(&run_lib_unit_tests.step);
     all_tests_step.dependOn(&run_unit_tests.step);
@@ -215,4 +228,5 @@ pub fn build(b: *std.Build) void {
     all_tests_step.dependOn(&run_advanced_query_tests.step);
     all_tests_step.dependOn(&run_prepared_statement_tests.step);
     all_tests_step.dependOn(&run_query_cancellation_tests.step);
+    all_tests_step.dependOn(&run_enhanced_metadata_tests.step);
 }

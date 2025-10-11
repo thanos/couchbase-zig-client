@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.5] - 2025-01-06
+
+### Added
+- Enhanced Query Metadata: Comprehensive metadata parsing and access
+- QueryMetrics struct: Detailed performance metrics with parsing
+- ConsistencyToken struct: Complete consistency token implementation
+- QueryResult metadata methods: parseMetadata(), getMetrics(), getWarnings()
+- Enhanced observability: Better query debugging and performance analysis
+- Comprehensive metadata tests: 6 test cases for metadata and consistency tokens
+
+### Changed
+- QueryResult now includes enhanced metadata support
+- QueryOptions now supports ConsistencyToken for advanced consistency
+- Improved query observability with detailed metrics and warnings
+- Enhanced error handling for metadata parsing
+
+### Technical Details
+- QueryMetadata struct with comprehensive JSON parsing
+- QueryMetrics struct with performance metrics extraction
+- ConsistencyToken struct with JSON parsing support
+- Memory-safe metadata lifecycle management
+- Enhanced QueryResult with metadata access methods
+
+### Test Coverage
+- 6 dedicated enhanced metadata tests
+- Consistency token parsing and usage testing
+- Query metadata parsing and access testing
+- Performance metrics extraction testing
+- Warning handling testing
+
+### Breaking Changes
+- None. All changes are additive and backward compatible.
+
 ## [0.3.4] - 2025-01-06
 
 ### Added

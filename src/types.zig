@@ -164,6 +164,182 @@ pub const QueryCancellationOptions = struct {
     force: bool = false, // Force cancellation even if query is in progress
 };
 
+/// Query metrics for performance analysis
+pub const QueryMetrics = struct {
+    elapsed_time: []const u8,
+    execution_time: []const u8,
+    result_count: u64,
+    result_size: u64,
+    mutation_count: u64,
+    sort_count: u64,
+    error_count: u64,
+    warning_count: u64,
+    allocator: std.mem.Allocator,
+    
+    pub fn deinit(self: *QueryMetrics) void {
+        self.allocator.free(self.elapsed_time);
+        self.allocator.free(self.execution_time);
+    }
+    
+    pub fn parse(self: *QueryMetrics, metrics_json: []const u8) !void {
+        var parsed = std.json.parseFromSlice(std.json.Value, self.allocator, metrics_json, .{}) catch return;
+        defer parsed.deinit();
+        
+        if (parsed.value.object.get("elapsedTime")) |elapsed| {
+            if (elapsed == .string) {
+                self.elapsed_time = try self.allocator.dupe(u8, elapsed.string);
+            }
+        }
+        
+        if (parsed.value.object.get("executionTime")) |exec| {
+            if (exec == .string) {
+                self.execution_time = try self.allocator.dupe(u8, exec.string);
+            }
+        }
+        
+        if (parsed.value.object.get("resultCount")) |count| {
+            if (count == .integer) {
+                self.result_count = @intCast(count.integer);
+            }
+        }
+        
+        if (parsed.value.object.get("resultSize")) |size| {
+            if (size == .integer) {
+                self.result_size = @intCast(size.integer);
+            }
+        }
+        
+        if (parsed.value.object.get("mutationCount")) |mut| {
+            if (mut == .integer) {
+                self.mutation_count = @intCast(mut.integer);
+            }
+        }
+        
+        if (parsed.value.object.get("sortCount")) |sort| {
+            if (sort == .integer) {
+                self.sort_count = @intCast(sort.integer);
+            }
+        }
+        
+        if (parsed.value.object.get("errorCount")) |err| {
+            if (err == .integer) {
+                self.error_count = @intCast(err.integer);
+            }
+        }
+        
+        if (parsed.value.object.get("warningCount")) |warn| {
+            if (warn == .integer) {
+                self.warning_count = @intCast(warn.integer);
+            }
+        }
+    }
+};
+
+/// Enhanced query metadata for better observability
+pub const QueryMetadata = struct {
+    request_id: ?[]const u8 = null,
+    client_context_id: ?[]const u8 = null,
+    status: ?[]const u8 = null,
+    metrics: ?*QueryMetrics = null,
+    profile: ?QueryProfile = null,
+    signature: ?[]const u8 = null,
+    warnings: ?[][]const u8 = null,
+    allocator: std.mem.Allocator,
+    
+    pub fn deinit(self: *QueryMetadata) void {
+        if (self.request_id) |id| self.allocator.free(id);
+        if (self.client_context_id) |ctx| self.allocator.free(ctx);
+        if (self.status) |status| self.allocator.free(status);
+        if (self.metrics) |metrics| {
+            var mut_metrics = metrics;
+            mut_metrics.deinit();
+            self.allocator.destroy(mut_metrics);
+        }
+        if (self.signature) |sig| self.allocator.free(sig);
+        if (self.warnings) |warns| {
+            for (warns) |warn| self.allocator.free(warn);
+            self.allocator.free(warns);
+        }
+    }
+    
+    pub fn parse(self: *QueryMetadata, meta_json: []const u8) !void {
+        var parsed = std.json.parseFromSlice(std.json.Value, self.allocator, meta_json, .{}) catch return;
+        defer parsed.deinit();
+        
+        if (parsed.value.object.get("requestID")) |req_id| {
+            if (req_id == .string) {
+                self.request_id = try self.allocator.dupe(u8, req_id.string);
+            }
+        }
+        
+        if (parsed.value.object.get("clientContextID")) |ctx_id| {
+            if (ctx_id == .string) {
+                self.client_context_id = try self.allocator.dupe(u8, ctx_id.string);
+            }
+        }
+        
+        if (parsed.value.object.get("status")) |status_val| {
+            if (status_val == .string) {
+                self.status = try self.allocator.dupe(u8, status_val.string);
+            }
+        }
+        
+        if (parsed.value.object.get("signature")) |sig_val| {
+            if (sig_val == .string) {
+                self.signature = try self.allocator.dupe(u8, sig_val.string);
+            }
+        }
+        
+        if (parsed.value.object.get("metrics")) |metrics_val| {
+            const metrics = try self.allocator.create(QueryMetrics);
+            metrics.allocator = self.allocator;
+            try metrics.parse(std.json.stringifyAlloc(self.allocator, metrics_val, .{}) catch return);
+            self.metrics = metrics;
+        }
+        
+        if (parsed.value.object.get("warnings")) |warns_val| {
+            if (warns_val == .array) {
+                const warns = try self.allocator.alloc([]const u8, warns_val.array.items.len);
+                for (warns_val.array.items, 0..) |warn, i| {
+                    if (warn == .string) {
+                        warns[i] = try self.allocator.dupe(u8, warn.string);
+                    }
+                }
+                self.warnings = warns;
+            }
+        }
+    }
+};
+
+/// Consistency token for advanced consistency control
+pub const ConsistencyToken = struct {
+    token: []const u8,
+    keyspace: []const u8,
+    allocator: std.mem.Allocator,
+    
+    pub fn deinit(self: *ConsistencyToken) void {
+        self.allocator.free(self.token);
+        self.allocator.free(self.keyspace);
+    }
+    
+    pub fn parse(self: *ConsistencyToken, token_json: []const u8) !void {
+        var parsed = std.json.parseFromSlice(std.json.Value, self.allocator, token_json, .{}) catch return;
+        defer parsed.deinit();
+        
+        if (parsed.value.object.get("token")) |token_val| {
+            if (token_val == .string) {
+                self.token = try self.allocator.dupe(u8, token_val.string);
+            }
+        }
+        
+        if (parsed.value.object.get("keyspace")) |keyspace_val| {
+            if (keyspace_val == .string) {
+                self.keyspace = try self.allocator.dupe(u8, keyspace_val.string);
+            }
+        }
+    }
+};
+
 /// View query options
 pub const ViewQueryOptions = struct {
     start_key: ?[]const u8 = null,
