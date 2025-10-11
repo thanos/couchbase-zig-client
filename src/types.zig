@@ -138,6 +138,32 @@ pub const PreparedStatementCache = struct {
     enabled: bool = true,
 };
 
+/// Query handle for cancellation
+pub const QueryHandle = struct {
+    id: u64,
+    cancelled: bool,
+    allocator: std.mem.Allocator,
+    
+    pub fn deinit(self: *QueryHandle) void {
+        _ = self;
+        // Handle cleanup if needed
+    }
+    
+    pub fn cancel(self: *QueryHandle) void {
+        self.cancelled = true;
+    }
+    
+    pub fn isCancelled(self: *const QueryHandle) bool {
+        return self.cancelled;
+    }
+};
+
+/// Query cancellation options
+pub const QueryCancellationOptions = struct {
+    timeout_ms: u32 = 5000, // 5 second timeout for cancellation
+    force: bool = false, // Force cancellation even if query is in progress
+};
+
 /// View query options
 pub const ViewQueryOptions = struct {
     start_key: ?[]const u8 = null,

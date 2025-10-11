@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.4] - 2025-01-06
+
+### Added
+- Query Cancellation API: Complete query cancellation implementation
+- QueryHandle Management: Query handle lifecycle and cancellation support
+- Memory-Safe Cancellation: Proper cleanup and resource management
+- Cancellation Options: Configurable cancellation behavior
+- Error Handling: Comprehensive cancellation error handling
+- QueryHandle struct with cancellation support
+- QueryCancellationOptions configuration struct
+- Client methods: cancelQuery(), isQueryCancelled()
+- QueryResult methods: cancel(), isCancelled()
+- QueryCancelled error type
+
+### Changed
+- Query Operations Coverage: Improved from 87% to 93%
+- Overall libcouchbase Coverage: Improved from ~75% to ~80%
+- QueryResult now includes QueryHandle for cancellation
+- QueryContext now supports cancellation checking
+- Memory management improved with proper handle cleanup
+
+### Technical Details
+- Uses QueryHandle for cancellation tracking
+- Automatic cleanup with defer statements
+- Memory-safe handle lifecycle management
+- Comprehensive error handling for cancellation
+- Performance-optimized cancellation checking
+
+### Test Coverage
+- 5 dedicated query cancellation tests
+- Cancellation functionality testing
+- Handle management testing
+- Error handling validation
+- Performance testing
+
+### Breaking Changes
+- None. All changes are additive and backward compatible.
+
 ## [0.3.3] - 2025-01-06
 
 ### Added

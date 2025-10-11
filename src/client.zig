@@ -274,4 +274,16 @@ pub const Client = struct {
             _ = self.prepared_statements.remove(key);
         }
     }
+
+    /// Cancel a running query
+    pub fn cancelQuery(self: *Client, result: *operations.QueryResult) void {
+        _ = self; // Client not used in current implementation
+        result.cancel();
+    }
+
+    /// Check if a query has been cancelled
+    pub fn isQueryCancelled(self: *const Client, result: *const operations.QueryResult) bool {
+        _ = self; // Client not used in current implementation
+        return result.isCancelled();
+    }
 };
