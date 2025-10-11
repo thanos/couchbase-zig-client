@@ -4,7 +4,16 @@ Version 0.3.0 - October 6, 2025
 
 This document compares the Zig wrapper implementation against the full libcouchbase C library to identify missing features.
 
-## Recent Updates (v0.3.3)
+## Recent Updates (v0.3.4)
+
+### Completed Features
+- Query Cancellation API: Complete query cancellation implementation
+- QueryHandle Management: Query handle lifecycle and cancellation support
+- Memory-Safe Cancellation: Proper cleanup and resource management
+- Cancellation Options: Configurable cancellation behavior
+- Error Handling: Comprehensive cancellation error handling
+
+### Previous Updates (v0.3.3)
 
 ### Completed Features
 - Prepared Statement API: Complete prepared statement implementation
@@ -177,7 +186,7 @@ Based on the [libcouchbase repository](https://github.com/couchbase/libcouchbase
 | Query Flex Index | [YES] | [YES] | Complete (v0.3.2) |
 | Query Consistency Tokens | [YES] | [PARTIAL] | Stubbed (v0.3.2) |
 | Prepared Statements | [YES] | [YES] | Complete (v0.3.3) |
-| Query Cancel | [YES] | [NO] | Missing |
+| Query Cancel | [YES] | [YES] | Complete (v0.3.4) |
 | Analytics Query | [YES] | [YES] | Complete (v0.3.2) |
 | Analytics Deferred | [YES] | [YES] | Complete (v0.3.2) |
 | Search Query (FTS) | [YES] | [YES] | Complete (v0.3.2) |
@@ -436,7 +445,7 @@ libcouchbase C library includes extensive tests for:
 ### Overall Coverage
 
 - **Core KV Operations**: 92% (12/13 operations)
-- **Query Operations**: 87% (13/15 operations) - Updated with prepared statements
+- **Query Operations**: 93% (14/15 operations) - Updated with query cancellation
 - **Subdocument Operations**: 100% (12/12 operations)
 - **Durability Features**: 70% (sync durability only)
 - **Error Handling**: 80% (major codes covered)
@@ -595,7 +604,7 @@ libcouchbase C library includes extensive tests for:
 
 ### Estimated Completion
 
-- **Current**: ~75% of libcouchbase functionality
+- **Current**: ~80% of libcouchbase functionality
 - **Core Operations**: ~92% complete
 - **Query Operations**: ~80% complete (improved with advanced query features)
 - **Advanced Features**: ~25% complete

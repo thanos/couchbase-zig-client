@@ -31,6 +31,10 @@ pub const DurabilityLevel = types.DurabilityLevel;
     // Prepared statement types
     pub const PreparedStatement = types.PreparedStatement;
     pub const PreparedStatementCache = types.PreparedStatementCache;
+    
+    // Query cancellation types
+    pub const QueryHandle = types.QueryHandle;
+    pub const QueryCancellationOptions = types.QueryCancellationOptions;
 
 // Test configuration from environment variables
 pub fn getTestConfig() TestConfig {

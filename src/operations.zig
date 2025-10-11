@@ -145,7 +145,8 @@ pub const QueryResult = struct {
     rows: [][]const u8,
     meta: ?[]const u8,
     allocator: std.mem.Allocator,
-
+    handle: ?*types.QueryHandle = null,
+    
     pub fn deinit(self: *QueryResult) void {
         for (self.rows) |row| {
             self.allocator.free(row);
@@ -154,6 +155,23 @@ pub const QueryResult = struct {
         if (self.meta) |meta| {
             self.allocator.free(meta);
         }
+        if (self.handle) |query_handle| {
+            query_handle.deinit();
+            self.allocator.destroy(query_handle);
+        }
+    }
+    
+    pub fn cancel(self: *QueryResult) void {
+        if (self.handle) |query_handle| {
+            query_handle.cancel();
+        }
+    }
+    
+    pub fn isCancelled(self: *const QueryResult) bool {
+        if (self.handle) |query_handle| {
+            return query_handle.isCancelled();
+        }
+        return false;
     }
 };
 
@@ -299,6 +317,7 @@ const QueryContext = struct {
     err: ?Error = null,
     done: bool = false,
     allocator: std.mem.Allocator,
+    handle: ?*types.QueryHandle = null,
 };
 
 /// Get operation
@@ -704,6 +723,7 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     var ctx = QueryContext{
         .rows = std.ArrayList([]const u8).init(allocator),
         .allocator = allocator,
+        .handle = null,
     };
     
     var cmd: ?*c.lcb_CMDQUERY = null;
@@ -712,6 +732,22 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     
     _ = c.lcb_cmdquery_statement(cmd, statement.ptr, statement.len);
     _ = c.lcb_cmdquery_adhoc(cmd, if (options.adhoc) 1 else 0);
+    
+    // Create query handle for cancellation after basic setup
+    const handle = try allocator.create(types.QueryHandle);
+    handle.* = types.QueryHandle{
+        .id = @as(u64, @intCast(std.time.timestamp())),
+        .cancelled = false,
+        .allocator = allocator,
+    };
+    ctx.handle = handle;
+    defer {
+        // Clean up handle if query fails before creating QueryResult
+        if (ctx.handle == handle) {
+            handle.deinit();
+            allocator.destroy(handle);
+        }
+    }
     
     // Set advanced query options
     _ = c.lcb_cmdquery_timeout(cmd, options.timeout_ms);
@@ -763,6 +799,15 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
             _ = c.lcb_respquery_cookie(resp, &cookie);
             var context: *QueryContext = @ptrCast(@alignCast(cookie));
             
+            // Check for cancellation
+            if (context.handle) |query_handle| {
+                if (query_handle.isCancelled()) {
+                    context.err = error.QueryCancelled;
+                    context.done = true;
+                    return;
+                }
+            }
+            
             const rc = c.lcb_respquery_status(resp);
             if (rc != c.LCB_SUCCESS) {
                 fromStatusCode(rc) catch |err| { context.err = err; };
@@ -807,13 +852,20 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
             allocator.free(row);
         }
         ctx.rows.deinit();
+        // Clean up handle on error
+        handle.deinit();
+        allocator.destroy(handle);
         return err;
     }
+    
+    // Clear handle from context to prevent cleanup in defer
+    ctx.handle = null;
     
     return QueryResult{
         .rows = try ctx.rows.toOwnedSlice(),
         .meta = ctx.meta,
         .allocator = allocator,
+        .handle = handle, // Transfer ownership to QueryResult
     };
 }
 
