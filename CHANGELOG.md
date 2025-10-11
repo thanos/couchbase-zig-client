@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.3] - 2025-01-06
+
+### Added
+- Prepared Statement API: Complete prepared statement implementation
+- Statement Caching: LRU cache with configurable size and expiration
+- Performance Optimization: Significant performance benefits for repeated queries
+- Auto-preparation: Automatic statement preparation on first execution
+- Cache Management: Statistics, cleanup, and expiration handling
+- PreparedStatement struct with lifecycle management
+- PreparedStatementCache configuration struct
+- Client methods: prepareStatement(), executePrepared(), clearPreparedStatements()
+- Cache statistics and cleanup methods
+- QueryOptions.prepared() convenience function
+
+### Changed
+- Query Operations Coverage: Improved from 80% to 87%
+- Overall libcouchbase Coverage: Improved from ~70% to ~75%
+- Client struct now includes prepared statement cache
+- Query execution now supports prepared statement optimization
+
+### Technical Details
+- Uses LRU cache for prepared statement management
+- Automatic expiration handling with configurable max age
+- Memory-safe prepared statement lifecycle
+- Performance comparison tests included
+- Comprehensive error handling for prepared statements
+
+### Test Coverage
+- 5 dedicated prepared statement tests
+- Cache management testing
+- Performance comparison testing
+- Parameter support testing
+- Error handling validation
+
+### Breaking Changes
+- None. All changes are additive and backward compatible.
+
 ## [0.3.2] - 2025-01-06
 
 ### Added

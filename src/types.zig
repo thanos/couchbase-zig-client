@@ -113,6 +113,31 @@ pub const SearchOptions = struct {
     raw: ?[]const u8 = null,
 };
 
+/// Prepared statement for query optimization
+pub const PreparedStatement = struct {
+    statement: []const u8,
+    prepared_data: []const u8,
+    allocator: std.mem.Allocator,
+    created_at: u64,
+    
+    pub fn deinit(self: *PreparedStatement) void {
+        self.allocator.free(self.statement);
+        self.allocator.free(self.prepared_data);
+    }
+    
+    pub fn isExpired(self: *const PreparedStatement, max_age_ms: u64) bool {
+        const now = @as(u64, @intCast(std.time.timestamp() * 1000)); // Convert to milliseconds
+        return (now - self.created_at) > max_age_ms;
+    }
+};
+
+/// Prepared statement cache configuration
+pub const PreparedStatementCache = struct {
+    max_size: usize = 100,
+    max_age_ms: u64 = 300000, // 5 minutes
+    enabled: bool = true,
+};
+
 /// View query options
 pub const ViewQueryOptions = struct {
     start_key: ?[]const u8 = null,

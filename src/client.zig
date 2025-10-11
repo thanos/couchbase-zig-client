@@ -9,6 +9,8 @@ const operations = @import("operations.zig");
 pub const Client = struct {
     instance: *c.lcb_INSTANCE,
     allocator: std.mem.Allocator,
+    prepared_statements: std.StringHashMap(types.PreparedStatement),
+    cache_config: types.PreparedStatementCache,
 
     /// Connection string options
     pub const ConnectOptions = struct {
@@ -82,11 +84,17 @@ pub const Client = struct {
         return Client{
             .instance = inst,
             .allocator = allocator,
+            .prepared_statements = std.StringHashMap(types.PreparedStatement).init(allocator),
+            .cache_config = .{},
         };
     }
 
     /// Disconnect and cleanup
     pub fn disconnect(self: *Client) void {
+        // Clean up prepared statements
+        self.clearPreparedStatements();
+        self.prepared_statements.deinit();
+        
         c.lcb_destroy(self.instance);
     }
 
@@ -211,5 +219,59 @@ pub const Client = struct {
         options: types.SearchOptions,
     ) Error!operations.SearchResult {
         return operations.searchQuery(self, allocator, index_name, search_query, options);
+    }
+
+    /// Prepare a statement for reuse
+    pub fn prepareStatement(self: *Client, statement: []const u8) Error!void {
+        return operations.prepareStatement(self, statement);
+    }
+
+    /// Execute a prepared statement
+    pub fn executePrepared(
+        self: *Client,
+        allocator: std.mem.Allocator,
+        statement: []const u8,
+        options: operations.QueryOptions,
+    ) Error!operations.QueryResult {
+        return operations.executePrepared(self, allocator, statement, options);
+    }
+
+    /// Clear prepared statement cache
+    pub fn clearPreparedStatements(self: *Client) void {
+        var iterator = self.prepared_statements.iterator();
+        while (iterator.next()) |entry| {
+            entry.value_ptr.deinit();
+        }
+        self.prepared_statements.clearRetainingCapacity();
+    }
+
+    /// Get prepared statement cache statistics
+    pub fn getPreparedStatementStats(self: *const Client) struct { count: usize, max_size: usize } {
+        return .{
+            .count = self.prepared_statements.count(),
+            .max_size = self.cache_config.max_size,
+        };
+    }
+
+    /// Cleanup expired prepared statements
+    pub fn cleanupExpiredPreparedStatements(self: *Client) void {
+        if (!self.cache_config.enabled) return;
+        
+        var to_remove = std.ArrayList([]const u8).init(self.allocator);
+        defer to_remove.deinit();
+        
+        var iterator = self.prepared_statements.iterator();
+        while (iterator.next()) |entry| {
+            if (entry.value_ptr.isExpired(self.cache_config.max_age_ms)) {
+                to_remove.append(entry.key_ptr.*) catch continue;
+            }
+        }
+        
+        for (to_remove.items) |key| {
+            if (self.prepared_statements.getPtr(key)) |prepared| {
+                prepared.deinit();
+            }
+            _ = self.prepared_statements.remove(key);
+        }
     }
 };

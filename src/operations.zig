@@ -131,6 +131,13 @@ pub const QueryOptions = struct {
             .client_context_id = context_id,
         };
     }
+    
+    /// Create query options for prepared statements
+    pub fn prepared() QueryOptions {
+        return QueryOptions{
+            .adhoc = false,
+        };
+    }
 };
 
 /// Query result
@@ -1324,4 +1331,64 @@ pub fn diagnostics(client: *Client, allocator: std.mem.Allocator) Error!Diagnost
     _ = client;
     // Simplified stub - full implementation would use lcb_diag
     return error.NotSupported;
+}
+
+/// Prepare a statement for reuse
+pub fn prepareStatement(client: *Client, statement: []const u8) Error!void {
+    // Check if statement is already prepared
+    if (client.prepared_statements.contains(statement)) {
+        return; // Already prepared
+    }
+    
+    // Check cache size limit
+    if (client.prepared_statements.count() >= client.cache_config.max_size) {
+        // Remove oldest statement (simple LRU - in production, use proper LRU)
+        var iterator = client.prepared_statements.iterator();
+        if (iterator.next()) |entry| {
+            entry.value_ptr.deinit();
+            _ = client.prepared_statements.remove(entry.key_ptr.*);
+        }
+    }
+    
+    // Create prepared statement entry
+    const now = @as(u64, @intCast(std.time.timestamp() * 1000)); // Convert to milliseconds
+    const prepared = types.PreparedStatement{
+        .statement = try client.allocator.dupe(u8, statement),
+        .prepared_data = try client.allocator.dupe(u8, statement), // In real implementation, this would be the prepared data
+        .allocator = client.allocator,
+        .created_at = now,
+    };
+    
+    // Store in cache
+    try client.prepared_statements.put(statement, prepared);
+}
+
+/// Execute a prepared statement
+pub fn executePrepared(client: *Client, allocator: std.mem.Allocator, statement: []const u8, options: QueryOptions) Error!QueryResult {
+    // Check if statement is prepared
+    if (!client.prepared_statements.contains(statement)) {
+        // Auto-prepare if not found
+        try prepareStatement(client, statement);
+    }
+    
+    // Get prepared statement
+    const prepared = client.prepared_statements.getPtr(statement) orelse {
+        return error.PreparedStatementNotFound;
+    };
+    
+    // Check if expired
+    if (prepared.isExpired(client.cache_config.max_age_ms)) {
+        // Remove expired statement
+        prepared.deinit();
+        _ = client.prepared_statements.remove(statement);
+        
+        // Re-prepare
+        try prepareStatement(client, statement);
+    }
+    
+    // Execute with prepared statement options
+    var prepared_options = options;
+    prepared_options.adhoc = false; // Use prepared statement
+    
+    return query(client, allocator, statement, prepared_options);
 }

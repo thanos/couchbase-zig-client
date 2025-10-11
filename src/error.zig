@@ -35,6 +35,7 @@ pub const Error = error{
     PlanningFailure,
     IndexNotFound,
     PreparedStatementFailure,
+    PreparedStatementNotFound,
     /// Durability errors
     DurabilityImpossible,
     DurabilityAmbiguous,
