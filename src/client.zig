@@ -123,6 +123,11 @@ pub const Client = struct {
         return operations.getCollectionManifest(self, allocator);
     }
 
+    /// Execute batch operations
+    pub fn executeBatch(self: *Client, allocator: std.mem.Allocator, batch_operations: []const types.BatchOperation) Error!types.BatchOperationResult {
+        return operations.executeBatch(self, allocator, batch_operations);
+    }
+
     /// Get a document from replica
     pub fn getFromReplica(self: *Client, key: []const u8, mode: types.ReplicaMode) Error!operations.GetResult {
         return operations.getFromReplica(self, key, mode);

@@ -1726,3 +1726,148 @@ pub fn getCollectionManifest(client: *Client, allocator: std.mem.Allocator) Erro
     
     return manifest;
 }
+
+/// Execute batch operations
+pub fn executeBatch(client: *Client, allocator: std.mem.Allocator, batch_operations: []const types.BatchOperation) Error!types.BatchOperationResult {
+    var results = try allocator.alloc(types.BatchResult, batch_operations.len);
+    
+    // Initialize all results as failed
+    for (results, 0..) |*result, i| {
+        result.* = types.BatchResult{
+            .operation_type = batch_operations[i].operation_type,
+            .key = batch_operations[i].key,
+            .success = false,
+            .@"error" = error.Unknown,
+            .result = switch (batch_operations[i].operation_type) {
+                .get => .{ .get = null },
+                .upsert => .{ .upsert = null },
+                .insert => .{ .insert = null },
+                .replace => .{ .replace = null },
+                .remove => .{ .remove = null },
+                .touch => .{ .touch = null },
+                .counter => .{ .counter = null },
+                .exists => .{ .exists = null },
+                .get_and_lock => .{ .get_and_lock = null },
+                .unlock => .{ .unlock = null },
+            },
+            .allocator = allocator,
+        };
+    }
+    
+    // Execute each operation
+    for (batch_operations, 0..) |operation, i| {
+        const result = &results[i];
+        
+        switch (operation.operation_type) {
+            .get => {
+                if (operation.collection) |collection| {
+                    if (getWithCollection(client, operation.key, collection)) |get_result| {
+                        result.success = true;
+                        result.@"error" = null;
+                        result.result = .{ .get = get_result };
+                    } else |err| {
+                        result.@"error" = err;
+                    }
+                } else {
+                    if (get(client, operation.key)) |get_result| {
+                        result.success = true;
+                        result.@"error" = null;
+                        result.result = .{ .get = get_result };
+                    } else |err| {
+                        result.@"error" = err;
+                    }
+                }
+            },
+            .upsert => {
+                if (store(client, operation.key, operation.value.?, .upsert, operation.options.upsert)) |upsert_result| {
+                    result.success = true;
+                    result.@"error" = null;
+                    result.result = .{ .upsert = upsert_result };
+                } else |err| {
+                    result.@"error" = err;
+                }
+            },
+            .insert => {
+                if (store(client, operation.key, operation.value.?, .insert, operation.options.insert)) |insert_result| {
+                    result.success = true;
+                    result.@"error" = null;
+                    result.result = .{ .insert = insert_result };
+                } else |err| {
+                    result.@"error" = err;
+                }
+            },
+            .replace => {
+                if (store(client, operation.key, operation.value.?, .replace, operation.options.replace)) |replace_result| {
+                    result.success = true;
+                    result.@"error" = null;
+                    result.result = .{ .replace = replace_result };
+                } else |err| {
+                    result.@"error" = err;
+                }
+            },
+            .remove => {
+                if (remove(client, operation.key, operation.options.remove)) |remove_result| {
+                    result.success = true;
+                    result.@"error" = null;
+                    result.result = .{ .remove = remove_result };
+                } else |err| {
+                    result.@"error" = err;
+                }
+            },
+            .touch => {
+                if (touch(client, operation.key, operation.options.touch.expiry)) |touch_result| {
+                    result.success = true;
+                    result.@"error" = null;
+                    result.result = .{ .touch = touch_result };
+                } else |err| {
+                    result.@"error" = err;
+                }
+            },
+            .counter => {
+                if (counter(client, operation.key, @intCast(operation.options.counter.initial), operation.options.counter)) |counter_result| {
+                    result.success = true;
+                    result.@"error" = null;
+                    result.result = .{ .counter = counter_result };
+                } else |err| {
+                    result.@"error" = err;
+                }
+            },
+            .exists => {
+                if (get(client, operation.key)) |get_result| {
+                    var mutable_result = get_result;
+                    mutable_result.deinit(); // Clean up the get result
+                    result.success = true;
+                    result.@"error" = null;
+                    result.result = .{ .exists = true };
+                } else |_| {
+                    result.success = true;
+                    result.@"error" = null;
+                    result.result = .{ .exists = false };
+                }
+            },
+            .get_and_lock => {
+                if (getAndLock(client, operation.key, operation.options.get_and_lock)) |get_and_lock_result| {
+                    result.success = true;
+                    result.@"error" = null;
+                    result.result = .{ .get_and_lock = get_and_lock_result };
+                } else |err| {
+                    result.@"error" = err;
+                }
+            },
+            .unlock => {
+                if (unlockWithOptions(client, operation.key, 0, operation.options.unlock)) |unlock_result| {
+                    result.success = true;
+                    result.@"error" = null;
+                    result.result = .{ .unlock = unlock_result };
+                } else |err| {
+                    result.@"error" = err;
+                }
+            },
+        }
+    }
+    
+    return types.BatchOperationResult{
+        .results = results,
+        .allocator = allocator,
+    };
+}
