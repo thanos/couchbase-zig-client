@@ -40,6 +40,12 @@ pub const DurabilityLevel = types.DurabilityLevel;
     pub const QueryMetadata = types.QueryMetadata;
     pub const QueryMetrics = types.QueryMetrics;
     pub const ConsistencyToken = types.ConsistencyToken;
+    
+    // Lock operation types
+    pub const GetAndLockOptions = types.GetAndLockOptions;
+    pub const UnlockOptions = types.UnlockOptions;
+    pub const GetAndLockResult = operations.GetAndLockResult;
+    pub const UnlockResult = operations.UnlockResult;
 
 // Test configuration from environment variables
 pub fn getTestConfig() TestConfig {

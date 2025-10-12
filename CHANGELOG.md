@@ -2,7 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.3.5] - 2025-01-06
+## [0.4.0] - 2025-10-12
+
+### Added
+- GET with Lock Operation: Complete implementation matching libcouchbase functionality
+- GetAndLockOptions: Comprehensive configuration for lock operations
+- UnlockOptions: Flexible unlock operation configuration
+- GetAndLockResult: Detailed result structure with lock time information
+- UnlockResult: Success status and CAS information for unlock operations
+- Comprehensive Lock Testing: 10 test cases covering all lock scenarios
+
+### Changed
+- Client now supports getAndLock() and unlockWithOptions() methods
+- Enhanced operations.zig with lock-specific callback handling
+- Updated build system to include get and lock test suite
+
+### Technical Details
+- Implemented lcb_cmdget_locktime() integration for lock duration control
+- Added UnlockContext for proper unlock operation callback handling
+- Created comprehensive test suite covering basic functionality, custom lock times, durability, error handling, timeout scenarios, and concurrent access
+- Memory-safe implementation with proper resource cleanup
+- Full compatibility with libcouchbase C library lock operations
+
+## [0.3.5] - 2025-10-11
 
 ### Added
 - Enhanced Query Metadata: Comprehensive metadata parsing and access

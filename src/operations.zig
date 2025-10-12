@@ -17,6 +17,25 @@ pub const GetResult = struct {
     }
 };
 
+/// Result of a get and lock operation
+pub const GetAndLockResult = struct {
+    value: []const u8,
+    cas: u64,
+    flags: u32,
+    lock_time: u32,
+    allocator: std.mem.Allocator,
+
+    pub fn deinit(self: *GetAndLockResult) void {
+        self.allocator.free(self.value);
+    }
+};
+
+/// Result of an unlock operation
+pub const UnlockResult = struct {
+    cas: u64,
+    success: bool,
+};
+
 /// Result of a mutation operation
 pub const MutationResult = struct {
     cas: u64,
@@ -332,6 +351,13 @@ const GetContext = struct {
     allocator: std.mem.Allocator,
 };
 
+const UnlockContext = struct {
+    cas: u64 = 0,
+    success: bool = false,
+    err: ?Error = null,
+    done: bool = false,
+};
+
 const MutationContext = struct {
     result: MutationResult = .{ .cas = 0 },
     err: ?Error = null,
@@ -415,6 +441,139 @@ pub fn get(client: *Client, key: []const u8) Error!GetResult {
     
     if (ctx.err) |err| return err;
     return ctx.result orelse error.Unknown;
+}
+
+/// Get and lock operation
+pub fn getAndLock(client: *Client, key: []const u8, options: types.GetAndLockOptions) Error!GetAndLockResult {
+    var ctx = GetContext{ .allocator = client.allocator };
+    
+    var cmd: ?*c.lcb_CMDGET = null;
+    _ = c.lcb_cmdget_create(&cmd);
+    defer _ = c.lcb_cmdget_destroy(cmd);
+    
+    _ = c.lcb_cmdget_key(cmd, key.ptr, key.len);
+    _ = c.lcb_cmdget_timeout(cmd, options.timeout_ms);
+    
+    // Set lock time (this is the key difference from regular get)
+    _ = c.lcb_cmdget_locktime(cmd, options.lock_time);
+
+    // Set durability if specified
+    // Note: Durability for GET operations is not supported in libcouchbase
+    _ = options.durability; // Suppress unused variable warning
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGET) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respget_cookie(resp, &cookie);
+            var context: *GetContext = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respget_status(resp);
+            if (rc != c.LCB_SUCCESS) {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+                context.done = true;
+                return;
+            }
+            
+            var value_ptr: [*c]const u8 = undefined;
+            var value_len: usize = undefined;
+            _ = c.lcb_respget_value(resp, &value_ptr, &value_len);
+            
+            var cas: u64 = undefined;
+            _ = c.lcb_respget_cas(resp, &cas);
+            
+            var flags: u32 = undefined;
+            _ = c.lcb_respget_flags(resp, &flags);
+            
+            const value = context.allocator.dupe(u8, value_ptr[0..value_len]) catch {
+                context.err = error.OutOfMemory;
+                context.done = true;
+                return;
+            };
+            
+            context.result = GetResult{
+                .value = value,
+                .cas = cas,
+                .flags = flags,
+                .allocator = context.allocator,
+            };
+            context.done = true;
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_GET, @ptrCast(&callback));
+    
+    var rc = c.lcb_get(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| return err;
+    const get_result = ctx.result orelse return error.Unknown;
+    
+    return GetAndLockResult{
+        .value = get_result.value,
+        .cas = get_result.cas,
+        .flags = get_result.flags,
+        .lock_time = options.lock_time,
+        .allocator = client.allocator,
+    };
+}
+
+/// Unlock operation with options
+pub fn unlockWithOptions(client: *Client, key: []const u8, cas: u64, options: types.UnlockOptions) Error!UnlockResult {
+    var ctx = UnlockContext{};
+    
+    var cmd: ?*c.lcb_CMDUNLOCK = null;
+    _ = c.lcb_cmdunlock_create(&cmd);
+    defer _ = c.lcb_cmdunlock_destroy(cmd);
+    
+    _ = c.lcb_cmdunlock_key(cmd, key.ptr, key.len);
+    _ = c.lcb_cmdunlock_cas(cmd, cas);
+    _ = c.lcb_cmdunlock_timeout(cmd, options.timeout_ms);
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPUNLOCK) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respunlock_cookie(resp, &cookie);
+            var context: *UnlockContext = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respunlock_status(resp);
+            if (rc != c.LCB_SUCCESS) {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+                context.done = true;
+                return;
+            }
+            
+            var resp_cas: u64 = undefined;
+            _ = c.lcb_respunlock_cas(resp, &resp_cas);
+            
+            context.cas = resp_cas;
+            context.success = true;
+            context.done = true;
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_UNLOCK, @ptrCast(&callback));
+    
+    var rc = c.lcb_unlock(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| return err;
+    
+    return UnlockResult{
+        .cas = ctx.cas,
+        .success = ctx.success,
+    };
 }
 
 /// Get from replica

@@ -4,7 +4,17 @@ Version 0.3.0 - October 6, 2025
 
 This document compares the Zig wrapper implementation against the full libcouchbase C library to identify missing features.
 
-## Recent Updates (v0.3.5)
+## Recent Updates (v0.4.0)
+
+### Completed Features
+- GET with Lock Operation: Complete implementation matching libcouchbase functionality
+- GetAndLockOptions: Comprehensive configuration for lock operations
+- UnlockOptions: Flexible unlock operation configuration
+- GetAndLockResult: Detailed result structure with lock time information
+- UnlockResult: Success status and CAS information for unlock operations
+- Comprehensive Lock Testing: 10 test cases covering all lock scenarios
+
+### Previous Updates (v0.3.5)
 
 ### Completed Features
 - Enhanced Query Metadata: Comprehensive metadata parsing and access
@@ -372,8 +382,9 @@ libcouchbase C library includes extensive tests for:
    - mutateIn (subdoc mutations) 
    - Tests for all subdoc operation types 
 
-2. **GET with Lock** - Pessimistic locking
-   - getAndLock(key, lock_time)
+2. **GET with Lock** - Pessimistic locking (Complete v0.4.0)
+   - getAndLock(key, options) with GetAndLockOptions
+   - unlockWithOptions(key, cas, options) with UnlockOptions
    - Test lock duration
    - Test concurrent lock attempts
 
@@ -483,7 +494,7 @@ libcouchbase C library includes extensive tests for:
 3. [DONE] **Implement APPEND/PREPEND** - Text manipulation operations (v0.1.1)
 4. [DONE] **Full Subdocument Support** - Critical for modern apps (v0.2.0)
 5. [DONE] **Parameterized N1QL Queries** - Security and performance (v0.3.1)
-6. **Implement GET with Lock** - Common use case (next priority)
+6. **GET with Lock** - Complete implementation (v0.4.0)
 7. **Advanced N1QL Query Options** - Enhanced query control
 
 ### Next Phase
@@ -618,7 +629,7 @@ libcouchbase C library includes extensive tests for:
 
 ### Estimated Completion
 
-- **Current**: ~87% of libcouchbase functionality
+- **Current**: ~88% of libcouchbase functionality
 - **Core Operations**: ~92% complete
 - **Query Operations**: ~100% complete (all N1QL features implemented)
 - **Advanced Features**: ~25% complete

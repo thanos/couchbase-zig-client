@@ -340,6 +340,41 @@ pub const ConsistencyToken = struct {
     }
 };
 
+/// Get and lock operation options
+pub const GetAndLockOptions = struct {
+    lock_time: u32 = 15, // Lock duration in seconds (default 15 seconds)
+    timeout_ms: u32 = 75000, // Operation timeout in milliseconds
+    flags: u32 = 0, // Additional flags
+    durability: Durability = .{}, // Durability requirements
+    
+    /// Create get and lock options with custom lock time
+    pub fn withLockTime(lock_time: u32) GetAndLockOptions {
+        return GetAndLockOptions{
+            .lock_time = lock_time,
+        };
+    }
+    
+    /// Create get and lock options with durability
+    pub fn withDurability(durability: Durability) GetAndLockOptions {
+        return GetAndLockOptions{
+            .durability = durability,
+        };
+    }
+};
+
+/// Unlock operation options
+pub const UnlockOptions = struct {
+    timeout_ms: u32 = 75000, // Operation timeout in milliseconds
+    flags: u32 = 0, // Additional flags
+    
+    /// Create unlock options with custom timeout
+    pub fn withTimeout(timeout_ms: u32) UnlockOptions {
+        return UnlockOptions{
+            .timeout_ms = timeout_ms,
+        };
+    }
+};
+
 /// View query options
 pub const ViewQueryOptions = struct {
     start_key: ?[]const u8 = null,
