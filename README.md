@@ -11,9 +11,20 @@ Zig wrapper for the libcouchbase C library.
 
 
 
+## Version 0.4.0 - GET with Lock Operations
+
+### New Features
+- GET with Lock Operation: Complete implementation matching libcouchbase functionality
+- GetAndLockOptions: Comprehensive configuration for lock operations
+- UnlockOptions: Flexible unlock operation configuration
+- GetAndLockResult: Detailed result structure with lock time information
+- UnlockResult: Success status and CAS information for unlock operations
+- Comprehensive Lock Testing: 10 test cases covering all lock scenarios
+
 ## Features
 
 - Key-value operations: get, insert, upsert, replace, remove, touch, counter
+- GET with Lock: getAndLock() and unlockWithOptions() operations
 - N1QL query execution
 - Subdocument operations (partial implementation)
 - CAS (compare-and-swap) support

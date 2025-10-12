@@ -166,6 +166,15 @@ pub fn build(b: *std.Build) void {
     enhanced_metadata_tests.linkSystemLibrary("couchbase");
     enhanced_metadata_tests.linkLibC();
 
+    const get_and_lock_tests = b.addTest(.{
+        .root_source_file = b.path("tests/get_and_lock_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    get_and_lock_tests.root_module.addImport("couchbase", couchbase_module);
+    get_and_lock_tests.linkSystemLibrary("couchbase");
+    get_and_lock_tests.linkLibC();
+
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const run_integration_tests = b.addRunArtifact(integration_tests);
@@ -178,6 +187,7 @@ pub fn build(b: *std.Build) void {
     const run_prepared_statement_tests = b.addRunArtifact(prepared_statement_tests);
     const run_query_cancellation_tests = b.addRunArtifact(query_cancellation_tests);
     const run_enhanced_metadata_tests = b.addRunArtifact(enhanced_metadata_tests);
+    const run_get_and_lock_tests = b.addRunArtifact(get_and_lock_tests);
 
     const test_step = b.step("test", "Run all tests");
     test_step.dependOn(&run_lib_unit_tests.step);
@@ -217,6 +227,9 @@ pub fn build(b: *std.Build) void {
     const enhanced_metadata_test_step = b.step("test-enhanced-metadata", "Run enhanced metadata tests");
     enhanced_metadata_test_step.dependOn(&run_enhanced_metadata_tests.step);
 
+    const get_and_lock_test_step = b.step("test-get-and-lock", "Run get and lock tests");
+    get_and_lock_test_step.dependOn(&run_get_and_lock_tests.step);
+
     const all_tests_step = b.step("test-all", "Run all test suites");
     all_tests_step.dependOn(&run_lib_unit_tests.step);
     all_tests_step.dependOn(&run_unit_tests.step);
@@ -229,4 +242,5 @@ pub fn build(b: *std.Build) void {
     all_tests_step.dependOn(&run_prepared_statement_tests.step);
     all_tests_step.dependOn(&run_query_cancellation_tests.step);
     all_tests_step.dependOn(&run_enhanced_metadata_tests.step);
+    all_tests_step.dependOn(&run_get_and_lock_tests.step);
 }

@@ -103,6 +103,16 @@ pub const Client = struct {
         return operations.get(self, key);
     }
 
+    /// Get and lock a document
+    pub fn getAndLock(self: *Client, key: []const u8, options: types.GetAndLockOptions) Error!operations.GetAndLockResult {
+        return operations.getAndLock(self, key, options);
+    }
+
+    /// Unlock a document with options
+    pub fn unlockWithOptions(self: *Client, key: []const u8, cas: u64, options: types.UnlockOptions) Error!operations.UnlockResult {
+        return operations.unlockWithOptions(self, key, cas, options);
+    }
+
     /// Get a document from replica
     pub fn getFromReplica(self: *Client, key: []const u8, mode: types.ReplicaMode) Error!operations.GetResult {
         return operations.getFromReplica(self, key, mode);
