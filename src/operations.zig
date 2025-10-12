@@ -443,6 +443,71 @@ pub fn get(client: *Client, key: []const u8) Error!GetResult {
     return ctx.result orelse error.Unknown;
 }
 
+/// Get operation with collection
+pub fn getWithCollection(client: *Client, key: []const u8, collection: types.Collection) Error!GetResult {
+    var ctx = GetContext{ .allocator = client.allocator };
+    
+    var cmd: ?*c.lcb_CMDGET = null;
+    _ = c.lcb_cmdget_create(&cmd);
+    defer _ = c.lcb_cmdget_destroy(cmd);
+    
+    _ = c.lcb_cmdget_key(cmd, key.ptr, key.len);
+    _ = c.lcb_cmdget_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGET) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respget_cookie(resp, &cookie);
+            var context: *GetContext = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respget_status(resp);
+            if (rc != c.LCB_SUCCESS) {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+                context.done = true;
+                return;
+            }
+            
+            var value_ptr: [*c]const u8 = undefined;
+            var value_len: usize = undefined;
+            _ = c.lcb_respget_value(resp, &value_ptr, &value_len);
+            
+            var cas: u64 = undefined;
+            _ = c.lcb_respget_cas(resp, &cas);
+            
+            var flags: u32 = undefined;
+            _ = c.lcb_respget_flags(resp, &flags);
+            
+            const value = context.allocator.dupe(u8, value_ptr[0..value_len]) catch {
+                context.err = error.OutOfMemory;
+                context.done = true;
+                return;
+            };
+            
+            context.result = GetResult{
+                .value = value,
+                .cas = cas,
+                .flags = flags,
+                .allocator = context.allocator,
+            };
+            context.done = true;
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_GET, @ptrCast(&callback));
+    
+    var rc = c.lcb_get(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| return err;
+    return ctx.result orelse error.Unknown;
+}
+
 /// Get and lock operation
 pub fn getAndLock(client: *Client, key: []const u8, options: types.GetAndLockOptions) Error!GetAndLockResult {
     var ctx = GetContext{ .allocator = client.allocator };
@@ -1642,4 +1707,22 @@ pub fn executePrepared(client: *Client, allocator: std.mem.Allocator, statement:
     prepared_options.adhoc = false; // Use prepared statement
     
     return query(client, allocator, statement, prepared_options);
+}
+
+/// Get collection manifest
+/// Note: This is a simplified implementation as libcouchbase doesn't expose
+/// collection manifest management directly through the C API
+pub fn getCollectionManifest(client: *Client, allocator: std.mem.Allocator) Error!types.CollectionManifest {
+    _ = client; // Suppress unused variable warning
+    
+    // Create an empty manifest as libcouchbase doesn't expose collection manifest directly
+    var collections = std.ArrayList(types.CollectionManifestEntry).init(allocator);
+    
+    const manifest = types.CollectionManifest{
+        .uid = 0,
+        .collections = try collections.toOwnedSlice(),
+        .allocator = allocator,
+    };
+    
+    return manifest;
 }

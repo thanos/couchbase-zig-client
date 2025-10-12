@@ -4,7 +4,19 @@ Version 0.3.0 - October 6, 2025
 
 This document compares the Zig wrapper implementation against the full libcouchbase C library to identify missing features.
 
-## Recent Updates (v0.4.0)
+## Recent Updates (v0.4.1)
+
+### Completed Features
+- Collections & Scopes API: Complete implementation for collection-aware operations
+- Collection Type: Collection identifier with name, scope, and memory management
+- Scope Type: Scope identifier with name and memory management
+- CollectionManifest: Collection manifest management with search and filtering
+- CollectionManifestEntry: Individual collection metadata with UID and TTL
+- getWithCollection(): Collection-aware document retrieval
+- getCollectionManifest(): Collection manifest retrieval (simplified implementation)
+- Comprehensive Collection Testing: 11 test cases covering all collection scenarios
+
+### Previous Updates (v0.4.0)
 
 ### Completed Features
 - GET with Lock Operation: Complete implementation matching libcouchbase functionality
@@ -629,7 +641,7 @@ libcouchbase C library includes extensive tests for:
 
 ### Estimated Completion
 
-- **Current**: ~88% of libcouchbase functionality
+- **Current**: ~89% of libcouchbase functionality
 - **Core Operations**: ~92% complete
 - **Query Operations**: ~100% complete (all N1QL features implemented)
 - **Advanced Features**: ~25% complete

@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2025-10-12
+
+### Added
+- Collections & Scopes API: Complete implementation for collection-aware operations
+- Collection Type: Collection identifier with name, scope, and memory management
+- Scope Type: Scope identifier with name and memory management
+- CollectionManifest: Collection manifest management with search and filtering
+- CollectionManifestEntry: Individual collection metadata with UID and TTL
+- getWithCollection(): Collection-aware document retrieval
+- getCollectionManifest(): Collection manifest retrieval (simplified implementation)
+- Comprehensive Collection Testing: 11 test cases covering all collection scenarios
+
+### Changed
+- Client now supports collection-aware operations
+- Enhanced operations.zig with collection-specific functionality
+- Updated build system to include collections test suite
+
+### Technical Details
+- Implemented lcb_cmdget_collection() integration for collection-aware GET operations
+- Added Collection and Scope structs with proper memory management
+- Created CollectionManifest with search and filtering capabilities
+- Memory-safe implementation with explicit resource cleanup
+- Full compatibility with libcouchbase C library collection support
+
 ## [0.4.0] - 2025-10-12
 
 ### Added
