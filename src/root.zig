@@ -46,6 +46,12 @@ pub const DurabilityLevel = types.DurabilityLevel;
     pub const UnlockOptions = types.UnlockOptions;
     pub const GetAndLockResult = operations.GetAndLockResult;
     pub const UnlockResult = operations.UnlockResult;
+    
+    // Collections & Scopes types
+    pub const Collection = types.Collection;
+    pub const Scope = types.Scope;
+    pub const CollectionManifest = types.CollectionManifest;
+    pub const CollectionManifestEntry = types.CollectionManifestEntry;
 
 // Test configuration from environment variables
 pub fn getTestConfig() TestConfig {

@@ -11,6 +11,18 @@ Zig wrapper for the libcouchbase C library.
 
 
 
+## Version 0.4.1 - Collections & Scopes API
+
+### New Features
+- Collections & Scopes API: Complete implementation for collection-aware operations
+- Collection Type: Collection identifier with name, scope, and memory management
+- Scope Type: Scope identifier with name and memory management
+- CollectionManifest: Collection manifest management with search and filtering
+- CollectionManifestEntry: Individual collection metadata with UID and TTL
+- getWithCollection(): Collection-aware document retrieval
+- getCollectionManifest(): Collection manifest retrieval (simplified implementation)
+- Comprehensive Collection Testing: 11 test cases covering all collection scenarios
+
 ## Version 0.4.0 - GET with Lock Operations
 
 ### New Features
@@ -25,6 +37,7 @@ Zig wrapper for the libcouchbase C library.
 
 - Key-value operations: get, insert, upsert, replace, remove, touch, counter
 - GET with Lock: getAndLock() and unlockWithOptions() operations
+- Collections & Scopes: Collection-aware operations and manifest management
 - N1QL query execution
 - Subdocument operations (partial implementation)
 - CAS (compare-and-swap) support

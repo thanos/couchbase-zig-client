@@ -375,6 +375,126 @@ pub const UnlockOptions = struct {
     }
 };
 
+/// Collection identifier
+pub const Collection = struct {
+    name: []const u8,
+    scope: []const u8,
+    allocator: std.mem.Allocator,
+    
+    /// Create a collection identifier
+    pub fn create(allocator: std.mem.Allocator, name: []const u8, scope: []const u8) !Collection {
+        return Collection{
+            .name = try allocator.dupe(u8, name),
+            .scope = try allocator.dupe(u8, scope),
+            .allocator = allocator,
+        };
+    }
+    
+    /// Create default collection (scope: "_default", collection: "_default")
+    pub fn default(allocator: std.mem.Allocator) !Collection {
+        return Collection{
+            .name = try allocator.dupe(u8, "_default"),
+            .scope = try allocator.dupe(u8, "_default"),
+            .allocator = allocator,
+        };
+    }
+    
+    /// Deinitialize collection
+    pub fn deinit(self: *Collection) void {
+        self.allocator.free(self.name);
+        self.allocator.free(self.scope);
+    }
+    
+    /// Check if this is the default collection
+    pub fn isDefault(self: *const Collection) bool {
+        return std.mem.eql(u8, self.name, "_default") and std.mem.eql(u8, self.scope, "_default");
+    }
+};
+
+/// Scope identifier
+pub const Scope = struct {
+    name: []const u8,
+    allocator: std.mem.Allocator,
+    
+    /// Create a scope identifier
+    pub fn create(allocator: std.mem.Allocator, name: []const u8) !Scope {
+        return Scope{
+            .name = try allocator.dupe(u8, name),
+            .allocator = allocator,
+        };
+    }
+    
+    /// Create default scope
+    pub fn default(allocator: std.mem.Allocator) !Scope {
+        return Scope{
+            .name = try allocator.dupe(u8, "_default"),
+            .allocator = allocator,
+        };
+    }
+    
+    /// Deinitialize scope
+    pub fn deinit(self: *Scope) void {
+        self.allocator.free(self.name);
+    }
+    
+    /// Check if this is the default scope
+    pub fn isDefault(self: *const Scope) bool {
+        return std.mem.eql(u8, self.name, "_default");
+    }
+};
+
+/// Collection manifest entry
+pub const CollectionManifestEntry = struct {
+    name: []const u8,
+    scope: []const u8,
+    uid: u32,
+    max_ttl: u32,
+    allocator: std.mem.Allocator,
+    
+    pub fn deinit(self: *CollectionManifestEntry) void {
+        self.allocator.free(self.name);
+        self.allocator.free(self.scope);
+    }
+};
+
+/// Collection manifest
+pub const CollectionManifest = struct {
+    uid: u64,
+    collections: []CollectionManifestEntry,
+    allocator: std.mem.Allocator,
+    
+    pub fn deinit(self: *CollectionManifest) void {
+        for (self.collections) |*entry| {
+            entry.deinit();
+        }
+        self.allocator.free(self.collections);
+    }
+    
+    /// Find collection by name and scope
+    pub fn findCollection(self: *const CollectionManifest, name: []const u8, scope: []const u8) ?*const CollectionManifestEntry {
+        for (self.collections) |*entry| {
+            if (std.mem.eql(u8, entry.name, name) and std.mem.eql(u8, entry.scope, scope)) {
+                return entry;
+            }
+        }
+        return null;
+    }
+    
+    /// Get all collections in a scope
+    pub fn getCollectionsInScope(self: *const CollectionManifest, scope: []const u8, allocator: std.mem.Allocator) ![]CollectionManifestEntry {
+        var result = std.ArrayList(CollectionManifestEntry).init(allocator);
+        defer result.deinit();
+        
+        for (self.collections) |entry| {
+            if (std.mem.eql(u8, entry.scope, scope)) {
+                try result.append(entry);
+            }
+        }
+        
+        return result.toOwnedSlice();
+    }
+};
+
 /// View query options
 pub const ViewQueryOptions = struct {
     start_key: ?[]const u8 = null,

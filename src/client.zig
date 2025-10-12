@@ -113,6 +113,16 @@ pub const Client = struct {
         return operations.unlockWithOptions(self, key, cas, options);
     }
 
+    /// Get a document with collection
+    pub fn getWithCollection(self: *Client, key: []const u8, collection: types.Collection) Error!operations.GetResult {
+        return operations.getWithCollection(self, key, collection);
+    }
+
+    /// Get collection manifest
+    pub fn getCollectionManifest(self: *Client, allocator: std.mem.Allocator) Error!types.CollectionManifest {
+        return operations.getCollectionManifest(self, allocator);
+    }
+
     /// Get a document from replica
     pub fn getFromReplica(self: *Client, key: []const u8, mode: types.ReplicaMode) Error!operations.GetResult {
         return operations.getFromReplica(self, key, mode);
