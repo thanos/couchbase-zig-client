@@ -495,6 +495,268 @@ pub const CollectionManifest = struct {
     }
 };
 
+/// Import Error type
+const Error = @import("error.zig").Error;
+
+/// Import operation result types
+const GetResult = @import("operations.zig").GetResult;
+const UpsertResult = @import("operations.zig").MutationResult;
+const InsertResult = @import("operations.zig").MutationResult;
+const ReplaceResult = @import("operations.zig").MutationResult;
+const RemoveResult = @import("operations.zig").MutationResult;
+const TouchResult = @import("operations.zig").MutationResult;
+const CounterResult = @import("operations.zig").CounterResult;
+const GetAndLockResult = @import("operations.zig").GetAndLockResult;
+const UnlockResult = @import("operations.zig").UnlockResult;
+
+/// Import option types
+const GetOptions = @import("operations.zig").StoreOptions;
+const UpsertOptions = @import("operations.zig").StoreOptions;
+const InsertOptions = @import("operations.zig").StoreOptions;
+const ReplaceOptions = @import("operations.zig").StoreOptions;
+const RemoveOptions = @import("operations.zig").RemoveOptions;
+const TouchOptions = @import("operations.zig").StoreOptions;
+const CounterOptions = @import("operations.zig").CounterOptions;
+const ExistsOptions = @import("operations.zig").StoreOptions;
+
+/// Batch operation types
+pub const BatchOperationType = enum {
+    get,
+    upsert,
+    insert,
+    replace,
+    remove,
+    touch,
+    counter,
+    exists,
+    get_and_lock,
+    unlock,
+};
+
+/// Individual batch operation
+pub const BatchOperation = struct {
+    operation_type: BatchOperationType,
+    key: []const u8,
+    value: ?[]const u8 = null,
+    options: union {
+        get: GetOptions,
+        upsert: UpsertOptions,
+        insert: InsertOptions,
+        replace: ReplaceOptions,
+        remove: RemoveOptions,
+        touch: TouchOptions,
+        counter: CounterOptions,
+        exists: ExistsOptions,
+        get_and_lock: GetAndLockOptions,
+        unlock: UnlockOptions,
+    },
+    collection: ?Collection = null,
+    
+    /// Create a batch get operation
+    pub fn get(key: []const u8, options: GetOptions) BatchOperation {
+        return BatchOperation{
+            .operation_type = .get,
+            .key = key,
+            .options = .{ .get = options },
+        };
+    }
+    
+    /// Create a batch upsert operation
+    pub fn upsert(key: []const u8, value: []const u8, options: UpsertOptions) BatchOperation {
+        return BatchOperation{
+            .operation_type = .upsert,
+            .key = key,
+            .value = value,
+            .options = .{ .upsert = options },
+        };
+    }
+    
+    /// Create a batch insert operation
+    pub fn insert(key: []const u8, value: []const u8, options: InsertOptions) BatchOperation {
+        return BatchOperation{
+            .operation_type = .insert,
+            .key = key,
+            .value = value,
+            .options = .{ .insert = options },
+        };
+    }
+    
+    /// Create a batch replace operation
+    pub fn replace(key: []const u8, value: []const u8, options: ReplaceOptions) BatchOperation {
+        return BatchOperation{
+            .operation_type = .replace,
+            .key = key,
+            .value = value,
+            .options = .{ .replace = options },
+        };
+    }
+    
+    /// Create a batch remove operation
+    pub fn remove(key: []const u8, options: RemoveOptions) BatchOperation {
+        return BatchOperation{
+            .operation_type = .remove,
+            .key = key,
+            .options = .{ .remove = options },
+        };
+    }
+    
+    /// Create a batch touch operation
+    pub fn touch(key: []const u8, options: TouchOptions) BatchOperation {
+        return BatchOperation{
+            .operation_type = .touch,
+            .key = key,
+            .options = .{ .touch = options },
+        };
+    }
+    
+    /// Create a batch counter operation
+    pub fn counter(key: []const u8, options: CounterOptions) BatchOperation {
+        return BatchOperation{
+            .operation_type = .counter,
+            .key = key,
+            .options = .{ .counter = options },
+        };
+    }
+    
+    /// Create a batch exists operation
+    pub fn exists(key: []const u8, options: ExistsOptions) BatchOperation {
+        return BatchOperation{
+            .operation_type = .exists,
+            .key = key,
+            .options = .{ .exists = options },
+        };
+    }
+    
+    /// Create a batch get and lock operation
+    pub fn getAndLock(key: []const u8, options: GetAndLockOptions) BatchOperation {
+        return BatchOperation{
+            .operation_type = .get_and_lock,
+            .key = key,
+            .options = .{ .get_and_lock = options },
+        };
+    }
+    
+    /// Create a batch unlock operation
+    pub fn unlock(key: []const u8, cas: u64, options: UnlockOptions) BatchOperation {
+        _ = cas; // Suppress unused parameter warning
+        return BatchOperation{
+            .operation_type = .unlock,
+            .key = key,
+            .options = .{ .unlock = options },
+        };
+    }
+    
+    /// Set collection for this operation
+    pub fn withCollection(self: *BatchOperation, collection: Collection) void {
+        self.collection = collection;
+    }
+};
+
+/// Individual batch result
+pub const BatchResult = struct {
+    operation_type: BatchOperationType,
+    key: []const u8,
+    success: bool,
+    @"error": ?Error = null,
+    result: union {
+        get: ?GetResult,
+        upsert: ?UpsertResult,
+        insert: ?InsertResult,
+        replace: ?ReplaceResult,
+        remove: ?RemoveResult,
+        touch: ?TouchResult,
+        counter: ?CounterResult,
+        exists: ?bool,
+        get_and_lock: ?GetAndLockResult,
+        unlock: ?UnlockResult,
+    },
+    allocator: std.mem.Allocator,
+    
+    pub fn deinit(self: *BatchResult) void {
+        switch (self.operation_type) {
+            .get => if (self.result.get) |*get_result| get_result.deinit(),
+            .upsert => {}, // MutationResult doesn't need cleanup
+            .insert => {}, // MutationResult doesn't need cleanup
+            .replace => {}, // MutationResult doesn't need cleanup
+            .remove => {}, // MutationResult doesn't need cleanup
+            .touch => {}, // MutationResult doesn't need cleanup
+            .counter => {}, // CounterResult doesn't need cleanup
+            .exists => {}, // bool doesn't need cleanup
+            .get_and_lock => if (self.result.get_and_lock) |*get_and_lock_result| get_and_lock_result.deinit(),
+            .unlock => {}, // UnlockResult doesn't need cleanup
+        }
+    }
+};
+
+/// Batch operation result
+pub const BatchOperationResult = struct {
+    results: []BatchResult,
+    allocator: std.mem.Allocator,
+    
+    pub fn deinit(self: *BatchOperationResult) void {
+        for (self.results) |*result| {
+            result.deinit();
+        }
+        self.allocator.free(self.results);
+    }
+    
+    /// Get successful results count
+    pub fn getSuccessCount(self: *const BatchOperationResult) usize {
+        var count: usize = 0;
+        for (self.results) |result| {
+            if (result.success) count += 1;
+        }
+        return count;
+    }
+    
+    /// Get failed results count
+    pub fn getFailureCount(self: *const BatchOperationResult) usize {
+        return self.results.len - self.getSuccessCount();
+    }
+    
+    /// Get results by operation type
+    pub fn getResultsByType(self: *const BatchOperationResult, operation_type: BatchOperationType, allocator: std.mem.Allocator) ![]BatchResult {
+        var filtered = std.ArrayList(BatchResult).init(allocator);
+        defer filtered.deinit();
+        
+        for (self.results) |result| {
+            if (result.operation_type == operation_type) {
+                try filtered.append(result);
+            }
+        }
+        
+        return filtered.toOwnedSlice();
+    }
+    
+    /// Get successful results only
+    pub fn getSuccessfulResults(self: *const BatchOperationResult, allocator: std.mem.Allocator) ![]BatchResult {
+        var successful = std.ArrayList(BatchResult).init(allocator);
+        defer successful.deinit();
+        
+        for (self.results) |result| {
+            if (result.success) {
+                try successful.append(result);
+            }
+        }
+        
+        return successful.toOwnedSlice();
+    }
+    
+    /// Get failed results only
+    pub fn getFailedResults(self: *const BatchOperationResult, allocator: std.mem.Allocator) ![]BatchResult {
+        var failed = std.ArrayList(BatchResult).init(allocator);
+        defer failed.deinit();
+        
+        for (self.results) |result| {
+            if (!result.success) {
+                try failed.append(result);
+            }
+        }
+        
+        return failed.toOwnedSlice();
+    }
+};
+
 /// View query options
 pub const ViewQueryOptions = struct {
     start_key: ?[]const u8 = null,

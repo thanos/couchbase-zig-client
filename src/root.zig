@@ -47,11 +47,17 @@ pub const DurabilityLevel = types.DurabilityLevel;
     pub const GetAndLockResult = operations.GetAndLockResult;
     pub const UnlockResult = operations.UnlockResult;
     
-    // Collections & Scopes types
-    pub const Collection = types.Collection;
-    pub const Scope = types.Scope;
-    pub const CollectionManifest = types.CollectionManifest;
-    pub const CollectionManifestEntry = types.CollectionManifestEntry;
+// Collections & Scopes types
+pub const Collection = types.Collection;
+pub const Scope = types.Scope;
+pub const CollectionManifest = types.CollectionManifest;
+pub const CollectionManifestEntry = types.CollectionManifestEntry;
+
+// Batch operation types
+pub const BatchOperationType = types.BatchOperationType;
+pub const BatchOperation = types.BatchOperation;
+pub const BatchResult = types.BatchResult;
+pub const BatchOperationResult = types.BatchOperationResult;
 
 // Test configuration from environment variables
 pub fn getTestConfig() TestConfig {
