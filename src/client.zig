@@ -285,6 +285,20 @@ pub const Client = struct {
         return views.viewQuery(self, allocator, design_doc, view_name, options);
     }
 
+    /// Execute a spatial view query (deprecated - use FTS instead)
+    /// Note: Spatial views are deprecated in Couchbase Server 6.0+
+    /// This method provides backward compatibility but may not work with newer servers
+    pub fn spatialViewQuery(
+        self: *Client,
+        allocator: std.mem.Allocator,
+        design_doc: []const u8,
+        view_name: []const u8,
+        options: @import("views.zig").SpatialViewOptions,
+    ) Error!@import("views.zig").ViewResult {
+        const views = @import("views.zig");
+        return views.spatialViewQuery(self, allocator, design_doc, view_name, options);
+    }
+
     /// Execute an analytics query
     pub fn analyticsQuery(
         self: *Client,
