@@ -1,13 +1,23 @@
 # Gap Analysis: Zig Client vs libcouchbase C Library
 
-Version 0.3.0 - October 6, 2025
+Version 0.4.3 - October 12, 2025
 
 This document compares the Zig wrapper implementation against the full libcouchbase C library to identify missing features.
 
-## Recent Updates (v0.4.1)
+## Recent Updates (v0.4.3)
 
 ### Completed Features
-- Collections & Scopes API: Complete implementation for collection-aware operations
+- Collections & Scopes API Phase 3: Advanced operations with collections
+- getReplicaWithCollection(): Collection-aware replica document retrieval
+- lookupInWithCollection(): Collection-aware subdocument lookup operations
+- mutateInWithCollection(): Collection-aware subdocument mutation operations
+- Comprehensive Advanced Operations Testing: 7 test cases covering replica and subdocument operations
+- Full Collections & Scopes API Coverage: 100% feature parity with C library
+
+### Previous Updates (v0.4.1)
+
+### Completed Features
+- Collections & Scopes API Phase 1 & 2: Core KV and lock operations with collections
 - Collection Type: Collection identifier with name, scope, and memory management
 - Scope Type: Scope identifier with name and memory management
 - CollectionManifest: Collection manifest management with search and filtering
@@ -268,9 +278,13 @@ Based on the [libcouchbase repository](https://github.com/couchbase/libcouchbase
 
 | Feature | C Library | Zig Implementation | Status |
 |---------|-----------|-------------------|--------|
-| Collection Specification | [YES] | [NO] | Missing |
-| Scope Operations | [YES] | [NO] | Missing |
-| Default Collection | [YES] | [YES] | Implicit |
+| Collection Specification | [YES] | [YES] | Complete |
+| Scope Operations | [YES] | [YES] | Complete |
+| Default Collection | [YES] | [YES] | Complete |
+| Core KV with Collections | [YES] | [YES] | Complete |
+| Lock Operations with Collections | [YES] | [YES] | Complete |
+| Replica Operations with Collections | [YES] | [YES] | Complete |
+| Subdocument Operations with Collections | [YES] | [YES] | Complete |
 
 ### 9. Diagnostics & Health
 
@@ -481,13 +495,14 @@ libcouchbase C library includes extensive tests for:
 
 ### Overall Coverage
 
-- **Core KV Operations**: 92% (12/13 operations)
+- **Core KV Operations**: 100% (13/13 operations) - All operations complete
 - **Query Operations**: 100% (15/15 operations) - All N1QL features complete
 - **Subdocument Operations**: 100% (12/12 operations)
+- **Collections & Scopes**: 100% (7/7 operations) - All collection-aware operations complete
 - **Durability Features**: 70% (sync durability only)
 - **Error Handling**: 80% (major codes covered)
 - **Connection Management**: 60% (basic connection only)
-- **Advanced Features**: 5% (transactions, FTS, views not implemented)
+- **Advanced Features**: 15% (collections complete, transactions, FTS, views not implemented)
 
 ### Test Coverage vs libcouchbase
 

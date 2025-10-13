@@ -11,10 +11,27 @@ Zig wrapper for the libcouchbase C library.
 
 
 
-## Version 0.4.1 - Collections & Scopes API
+## Version 0.4.3 - Collections & Scopes API Complete
 
 ### New Features
-- Collections & Scopes API: Complete implementation for collection-aware operations
+- Collections & Scopes API Phase 3: Advanced operations with collections
+- getReplicaWithCollection(): Collection-aware replica document retrieval
+- lookupInWithCollection(): Collection-aware subdocument lookup operations
+- mutateInWithCollection(): Collection-aware subdocument mutation operations
+- Comprehensive Advanced Operations Testing: 7 test cases covering replica and subdocument operations
+- Full Collections & Scopes API Coverage: 100% feature parity with C library
+
+### Technical Details
+- Phase 1: Core KV operations (upsert, insert, replace, remove, touch, counter, exists)
+- Phase 2: Lock operations (getAndLock, unlock)
+- Phase 3: Advanced operations (replica, subdocument lookup/mutation)
+- All operations maintain Zig idiomatic style with proper memory management
+- Full integration with libcouchbase C library collection functions
+
+## Version 0.4.1 - Collections & Scopes API Phase 1 & 2
+
+### New Features
+- Collections & Scopes API Phase 1 & 2: Core KV and lock operations with collections
 - Collection Type: Collection identifier with name, scope, and memory management
 - Scope Type: Scope identifier with name and memory management
 - CollectionManifest: Collection manifest management with search and filtering
@@ -37,12 +54,13 @@ Zig wrapper for the libcouchbase C library.
 
 - Key-value operations: get, insert, upsert, replace, remove, touch, counter
 - GET with Lock: getAndLock() and unlockWithOptions() operations
-- Collections & Scopes: Collection-aware operations and manifest management
+- Collections & Scopes: Complete collection-aware operations (100% feature parity)
 - N1QL query execution
-- Subdocument operations (partial implementation)
+- Subdocument operations: Complete implementation with collection support
+- Batch operations: Execute multiple operations in single call
 - CAS (compare-and-swap) support
 - Durability levels
-- Replica reads
+- Replica reads with collection support
 - Error type mappings
 
 ## Requirements

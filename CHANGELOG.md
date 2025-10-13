@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.3] - 2025-10-12
+
+### Added
+- Collections & Scopes API Phase 3: Advanced operations with collections
+- getReplicaWithCollection(): Collection-aware replica document retrieval
+- lookupInWithCollection(): Collection-aware subdocument lookup operations
+- mutateInWithCollection(): Collection-aware subdocument mutation operations
+- Comprehensive Advanced Operations Testing: 7 test cases covering replica and subdocument operations
+- Full Collections & Scopes API Coverage: 100% feature parity with C library
+
+### Changed
+- Collections & Scopes API now complete with all three phases implemented
+- Enhanced subdocument operations with collection support
+- Updated build system to include Phase 3 test suite
+- Improved error handling for replica operations in single-node setups
+
+### Technical Details
+- Phase 1: Core KV operations (upsert, insert, replace, remove, touch, counter, exists)
+- Phase 2: Lock operations (getAndLock, unlock)
+- Phase 3: Advanced operations (replica, subdocument lookup/mutation)
+- All operations maintain Zig idiomatic style with proper memory management
+- Full integration with libcouchbase C library collection functions
+
 ## [0.4.1] - 2025-10-12
 
 ### Added

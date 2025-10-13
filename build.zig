@@ -184,6 +184,33 @@ pub fn build(b: *std.Build) void {
     collections_tests.linkSystemLibrary("couchbase");
     collections_tests.linkLibC();
 
+    const collections_phase1_tests = b.addTest(.{
+        .root_source_file = b.path("tests/collections_phase1_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    collections_phase1_tests.root_module.addImport("couchbase", couchbase_module);
+    collections_phase1_tests.linkSystemLibrary("couchbase");
+    collections_phase1_tests.linkLibC();
+
+    const collections_phase2_tests = b.addTest(.{
+        .root_source_file = b.path("tests/collections_phase2_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    collections_phase2_tests.root_module.addImport("couchbase", couchbase_module);
+    collections_phase2_tests.linkSystemLibrary("couchbase");
+    collections_phase2_tests.linkLibC();
+
+    const collections_phase3_tests = b.addTest(.{
+        .root_source_file = b.path("tests/collections_phase3_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    collections_phase3_tests.root_module.addImport("couchbase", couchbase_module);
+    collections_phase3_tests.linkSystemLibrary("couchbase");
+    collections_phase3_tests.linkLibC();
+
     const batch_tests = b.addTest(.{
         .root_source_file = b.path("tests/batch_test.zig"),
         .target = target,
@@ -207,6 +234,9 @@ pub fn build(b: *std.Build) void {
     const run_enhanced_metadata_tests = b.addRunArtifact(enhanced_metadata_tests);
     const run_get_and_lock_tests = b.addRunArtifact(get_and_lock_tests);
     const run_collections_tests = b.addRunArtifact(collections_tests);
+    const run_collections_phase1_tests = b.addRunArtifact(collections_phase1_tests);
+    const run_collections_phase2_tests = b.addRunArtifact(collections_phase2_tests);
+    const run_collections_phase3_tests = b.addRunArtifact(collections_phase3_tests);
     const run_batch_tests = b.addRunArtifact(batch_tests);
 
     const test_step = b.step("test", "Run all tests");
@@ -253,6 +283,15 @@ pub fn build(b: *std.Build) void {
     const collections_test_step = b.step("test-collections", "Run collections and scopes tests");
     collections_test_step.dependOn(&run_collections_tests.step);
 
+    const collections_phase1_test_step = b.step("test-collections-phase1", "Run collections phase 1 tests");
+    collections_phase1_test_step.dependOn(&run_collections_phase1_tests.step);
+
+    const collections_phase2_test_step = b.step("test-collections-phase2", "Run collections phase 2 tests");
+    collections_phase2_test_step.dependOn(&run_collections_phase2_tests.step);
+
+    const collections_phase3_test_step = b.step("test-collections-phase3", "Run collections phase 3 tests");
+    collections_phase3_test_step.dependOn(&run_collections_phase3_tests.step);
+
     const batch_test_step = b.step("test-batch", "Run batch operation tests");
     batch_test_step.dependOn(&run_batch_tests.step);
 
@@ -270,5 +309,8 @@ pub fn build(b: *std.Build) void {
     all_tests_step.dependOn(&run_enhanced_metadata_tests.step);
     all_tests_step.dependOn(&run_get_and_lock_tests.step);
     all_tests_step.dependOn(&run_collections_tests.step);
+    all_tests_step.dependOn(&run_collections_phase1_tests.step);
+    all_tests_step.dependOn(&run_collections_phase2_tests.step);
+    all_tests_step.dependOn(&run_collections_phase3_tests.step);
     all_tests_step.dependOn(&run_batch_tests.step);
 }
