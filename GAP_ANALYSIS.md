@@ -595,10 +595,10 @@ libcouchbase C library includes extensive tests for:
 - Transaction isolation
 - Concurrent transactions
 
-[NO] Collections tests:
-- Scope operations
-- Collection CRUD
-- Collection-aware operations
+[YES] Collections tests:
+- Scope operations - Complete (v0.4.3)
+- Collection CRUD - Complete (v0.4.3)
+- Collection-aware operations - Complete (v0.4.3)
 
 [NO] Connection resilience tests:
 - Network failures
@@ -647,7 +647,7 @@ libcouchbase C library includes extensive tests for:
 - [NO] Spatial views (not implemented)
 - [NO] Full-text search (not implemented)
 - [NO] GET with lock, OBSERVE (not implemented)
-- [NO] Collections/scopes API (not implemented)
+- [YES] Collections/scopes API (fully implemented v0.4.3)
 - [NO] Advanced N1QL query options (profile, readonly, etc.)
 - [NO] Prepared statements (not implemented)
 - [NO] Advanced connection features (pooling, failover)
@@ -656,10 +656,11 @@ libcouchbase C library includes extensive tests for:
 
 ### Estimated Completion
 
-- **Current**: ~89% of libcouchbase functionality
-- **Core Operations**: ~92% complete
+- **Current**: ~95% of libcouchbase functionality
+- **Core Operations**: ~100% complete (all operations implemented)
 - **Query Operations**: ~100% complete (all N1QL features implemented)
-- **Advanced Features**: ~25% complete
+- **Collections & Scopes**: ~100% complete (all collection-aware operations implemented)
+- **Advanced Features**: ~40% complete
 
 ### Effort Estimates
 
