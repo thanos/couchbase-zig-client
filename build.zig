@@ -220,6 +220,15 @@ pub fn build(b: *std.Build) void {
     batch_tests.linkSystemLibrary("couchbase");
     batch_tests.linkLibC();
 
+    const enhanced_batch_tests = b.addTest(.{
+        .root_source_file = b.path("tests/enhanced_batch_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    enhanced_batch_tests.root_module.addImport("couchbase", couchbase_module);
+    enhanced_batch_tests.linkSystemLibrary("couchbase");
+    enhanced_batch_tests.linkLibC();
+
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const run_integration_tests = b.addRunArtifact(integration_tests);
@@ -238,6 +247,7 @@ pub fn build(b: *std.Build) void {
     const run_collections_phase2_tests = b.addRunArtifact(collections_phase2_tests);
     const run_collections_phase3_tests = b.addRunArtifact(collections_phase3_tests);
     const run_batch_tests = b.addRunArtifact(batch_tests);
+    const run_enhanced_batch_tests = b.addRunArtifact(enhanced_batch_tests);
 
     const test_step = b.step("test", "Run all tests");
     test_step.dependOn(&run_lib_unit_tests.step);
@@ -295,6 +305,9 @@ pub fn build(b: *std.Build) void {
     const batch_test_step = b.step("test-batch", "Run batch operation tests");
     batch_test_step.dependOn(&run_batch_tests.step);
 
+    const enhanced_batch_test_step = b.step("test-enhanced-batch", "Run enhanced batch operation tests");
+    enhanced_batch_test_step.dependOn(&run_enhanced_batch_tests.step);
+
     const all_tests_step = b.step("test-all", "Run all test suites");
     all_tests_step.dependOn(&run_lib_unit_tests.step);
     all_tests_step.dependOn(&run_unit_tests.step);
@@ -313,4 +326,5 @@ pub fn build(b: *std.Build) void {
     all_tests_step.dependOn(&run_collections_phase2_tests.step);
     all_tests_step.dependOn(&run_collections_phase3_tests.step);
     all_tests_step.dependOn(&run_batch_tests.step);
+    all_tests_step.dependOn(&run_enhanced_batch_tests.step);
 }

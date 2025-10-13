@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.4] - 2025-10-13
+
+### Added
+- Enhanced batch operations with collection support
+- New batch operation types: get_replica, lookup_in, mutate_in
+- Collection-aware batch operations via withCollection() method
+- Enhanced counter operations with direct delta parameter
+- Comprehensive enhanced batch test suite with 4 test cases
+- Support for all collection-aware operations in batch processing
+
+### Changed
+- BatchOperation.counter() now requires delta parameter as second argument
+- withCollection() method now returns new BatchOperation instead of modifying in-place
+- Improved batch operation error handling and result processing
+- Enhanced memory management for batch operations
+
+### Fixed
+- Counter operations in batch processing with proper delta handling
+- Collection operation memory management in batch processing
+- Error handling for batch operations with collections
+- Backward compatibility for existing batch operations
+
 ## [0.4.3] - 2025-10-12
 
 ### Added

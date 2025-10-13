@@ -11,6 +11,23 @@ Zig wrapper for the libcouchbase C library.
 
 
 
+## Version 0.4.4 - Enhanced Batch Operations with Collections
+
+### New Features
+- Enhanced batch operations with collection support
+- New batch operation types: get_replica, lookup_in, mutate_in
+- Collection-aware batch operations via withCollection() method
+- Enhanced counter operations with direct delta parameter
+- Comprehensive enhanced batch test suite with 4 test cases
+- Support for all collection-aware operations in batch processing
+
+### Technical Details
+- Complete batch operation coverage for all collection-aware operations
+- Seamless integration with existing collection-aware operations
+- Improved memory management and error handling for batch operations
+- Backward compatibility maintained with clear migration path
+- Production-ready batch processing for multi-tenant applications
+
 ## Version 0.4.3 - Collections & Scopes API Complete
 
 ### New Features

@@ -2460,8 +2460,11 @@ pub fn executeBatch(client: *Client, allocator: std.mem.Allocator, batch_operati
                 .counter => .{ .counter = null },
                 .exists => .{ .exists = null },
                 .get_and_lock => .{ .get_and_lock = null },
-                .unlock => .{ .unlock = null },
-            },
+            .unlock => .{ .unlock = null },
+            .get_replica => .{ .get_replica = null },
+            .lookup_in => .{ .lookup_in = null },
+            .mutate_in => .{ .mutate_in = null },
+        },
             .allocator = allocator,
         };
     }
@@ -2536,7 +2539,8 @@ pub fn executeBatch(client: *Client, allocator: std.mem.Allocator, batch_operati
                 }
             },
             .counter => {
-                if (counter(client, operation.key, @intCast(operation.options.counter.initial), operation.options.counter)) |counter_result| {
+                const delta = operation.delta orelse 1;
+                if (counter(client, operation.key, delta, operation.options.counter)) |counter_result| {
                     result.success = true;
                     result.@"error" = null;
                     result.result = .{ .counter = counter_result };
@@ -2573,6 +2577,63 @@ pub fn executeBatch(client: *Client, allocator: std.mem.Allocator, batch_operati
                     result.result = .{ .unlock = unlock_result };
                 } else |err| {
                     result.@"error" = err;
+                }
+            },
+            .get_replica => {
+                if (operation.collection) |collection| {
+                    if (getReplicaWithCollection(client, operation.key, collection, .any)) |get_result| {
+                        result.success = true;
+                        result.@"error" = null;
+                        result.result = .{ .get_replica = get_result };
+                    } else |err| {
+                        result.@"error" = err;
+                    }
+                } else {
+                    if (getFromReplica(client, operation.key, .any)) |get_result| {
+                        result.success = true;
+                        result.@"error" = null;
+                        result.result = .{ .get_replica = get_result };
+                    } else |err| {
+                        result.@"error" = err;
+                    }
+                }
+            },
+            .lookup_in => {
+                if (operation.collection) |collection| {
+                    if (lookupInWithCollection(client, allocator, operation.key, collection, operation.options.lookup_in.specs)) |subdoc_result| {
+                        result.success = true;
+                        result.@"error" = null;
+                        result.result = .{ .lookup_in = subdoc_result };
+                    } else |err| {
+                        result.@"error" = err;
+                    }
+                } else {
+                    if (lookupIn(client, allocator, operation.key, operation.options.lookup_in.specs)) |subdoc_result| {
+                        result.success = true;
+                        result.@"error" = null;
+                        result.result = .{ .lookup_in = subdoc_result };
+                    } else |err| {
+                        result.@"error" = err;
+                    }
+                }
+            },
+            .mutate_in => {
+                if (operation.collection) |collection| {
+                    if (mutateInWithCollection(client, allocator, operation.key, collection, operation.options.mutate_in.specs, operation.options.mutate_in.subdoc_options)) |subdoc_result| {
+                        result.success = true;
+                        result.@"error" = null;
+                        result.result = .{ .mutate_in = subdoc_result };
+                    } else |err| {
+                        result.@"error" = err;
+                    }
+                } else {
+                    if (mutateIn(client, allocator, operation.key, operation.options.mutate_in.specs, operation.options.mutate_in.subdoc_options)) |subdoc_result| {
+                        result.success = true;
+                        result.@"error" = null;
+                        result.result = .{ .mutate_in = subdoc_result };
+                    } else |err| {
+                        result.@"error" = err;
+                    }
                 }
             },
         }

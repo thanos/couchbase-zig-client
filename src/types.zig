@@ -518,6 +518,9 @@ const RemoveOptions = @import("operations.zig").RemoveOptions;
 const TouchOptions = @import("operations.zig").StoreOptions;
 const CounterOptions = @import("operations.zig").CounterOptions;
 const ExistsOptions = @import("operations.zig").StoreOptions;
+const SubdocSpec = @import("operations.zig").SubdocSpec;
+const SubdocOptions = @import("operations.zig").SubdocOptions;
+const SubdocResult = @import("operations.zig").SubdocResult;
 
 /// Batch operation types
 pub const BatchOperationType = enum {
@@ -531,6 +534,9 @@ pub const BatchOperationType = enum {
     exists,
     get_and_lock,
     unlock,
+    get_replica,
+    lookup_in,
+    mutate_in,
 };
 
 /// Individual batch operation
@@ -538,6 +544,7 @@ pub const BatchOperation = struct {
     operation_type: BatchOperationType,
     key: []const u8,
     value: ?[]const u8 = null,
+    delta: ?i64 = null, // For counter operations
     options: union {
         get: GetOptions,
         upsert: UpsertOptions,
@@ -549,6 +556,9 @@ pub const BatchOperation = struct {
         exists: ExistsOptions,
         get_and_lock: GetAndLockOptions,
         unlock: UnlockOptions,
+        get_replica: GetOptions,
+        lookup_in: struct { specs: []const SubdocSpec },
+        mutate_in: struct { specs: []const SubdocSpec, subdoc_options: SubdocOptions },
     },
     collection: ?Collection = null,
     
@@ -610,10 +620,11 @@ pub const BatchOperation = struct {
     }
     
     /// Create a batch counter operation
-    pub fn counter(key: []const u8, options: CounterOptions) BatchOperation {
+    pub fn counter(key: []const u8, delta: i64, options: CounterOptions) BatchOperation {
         return BatchOperation{
             .operation_type = .counter,
             .key = key,
+            .delta = delta,
             .options = .{ .counter = options },
         };
     }
@@ -646,9 +657,38 @@ pub const BatchOperation = struct {
         };
     }
     
+    /// Create a batch get replica operation
+    pub fn getReplica(key: []const u8, options: GetOptions) BatchOperation {
+        return BatchOperation{
+            .operation_type = .get_replica,
+            .key = key,
+            .options = .{ .get_replica = options },
+        };
+    }
+    
+    /// Create a batch subdocument lookup operation
+    pub fn lookupIn(key: []const u8, specs: []const SubdocSpec) BatchOperation {
+        return BatchOperation{
+            .operation_type = .lookup_in,
+            .key = key,
+            .options = .{ .lookup_in = .{ .specs = specs } },
+        };
+    }
+    
+    /// Create a batch subdocument mutation operation
+    pub fn mutateIn(key: []const u8, specs: []const SubdocSpec, subdoc_options: SubdocOptions) BatchOperation {
+        return BatchOperation{
+            .operation_type = .mutate_in,
+            .key = key,
+            .options = .{ .mutate_in = .{ .specs = specs, .subdoc_options = subdoc_options } },
+        };
+    }
+    
     /// Set collection for this operation
-    pub fn withCollection(self: *BatchOperation, collection: Collection) void {
-        self.collection = collection;
+    pub fn withCollection(self: *const BatchOperation, collection: Collection) BatchOperation {
+        var result = self.*;
+        result.collection = collection;
+        return result;
     }
 };
 
@@ -669,6 +709,9 @@ pub const BatchResult = struct {
         exists: ?bool,
         get_and_lock: ?GetAndLockResult,
         unlock: ?UnlockResult,
+        get_replica: ?GetResult,
+        lookup_in: ?SubdocResult,
+        mutate_in: ?SubdocResult,
     },
     allocator: std.mem.Allocator,
     
@@ -684,6 +727,9 @@ pub const BatchResult = struct {
             .exists => {}, // bool doesn't need cleanup
             .get_and_lock => if (self.result.get_and_lock) |*get_and_lock_result| get_and_lock_result.deinit(),
             .unlock => {}, // UnlockResult doesn't need cleanup
+            .get_replica => if (self.result.get_replica) |*get_result| get_result.deinit(),
+            .lookup_in => if (self.result.lookup_in) |*subdoc_result| subdoc_result.deinit(),
+            .mutate_in => if (self.result.mutate_in) |*subdoc_result| subdoc_result.deinit(),
         }
     }
 };
