@@ -11,6 +11,23 @@ Zig wrapper for the libcouchbase C library.
 
 
 
+## Version 0.4.5 - Spatial Views Implementation (Deprecated)
+
+### New Features
+- Spatial Views implementation for backward compatibility
+- spatialViewQuery() function with geospatial parameters
+- BoundingBox and SpatialRange data structures for geospatial queries
+- Comprehensive spatial view test suite with 8 test cases
+- Deprecation warnings and migration guidance to Full-Text Search (FTS)
+
+### Technical Details
+- Backward compatibility with older Couchbase Server versions
+- Automatic deprecation warnings for spatial view usage
+- Clear migration guidance to modern FTS geospatial queries
+- Comprehensive error handling for unsupported operations
+
+**Note**: Spatial views are deprecated in Couchbase Server 6.0+. Users are strongly encouraged to migrate to Full-Text Search (FTS) for geospatial queries.
+
 ## Version 0.4.4 - Enhanced Batch Operations with Collections
 
 ### New Features

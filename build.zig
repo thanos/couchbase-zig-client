@@ -229,6 +229,15 @@ pub fn build(b: *std.Build) void {
     enhanced_batch_tests.linkSystemLibrary("couchbase");
     enhanced_batch_tests.linkLibC();
 
+    const spatial_view_tests = b.addTest(.{
+        .root_source_file = b.path("tests/spatial_view_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    spatial_view_tests.root_module.addImport("couchbase", couchbase_module);
+    spatial_view_tests.linkSystemLibrary("couchbase");
+    spatial_view_tests.linkLibC();
+
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const run_integration_tests = b.addRunArtifact(integration_tests);
@@ -248,6 +257,7 @@ pub fn build(b: *std.Build) void {
     const run_collections_phase3_tests = b.addRunArtifact(collections_phase3_tests);
     const run_batch_tests = b.addRunArtifact(batch_tests);
     const run_enhanced_batch_tests = b.addRunArtifact(enhanced_batch_tests);
+    const run_spatial_view_tests = b.addRunArtifact(spatial_view_tests);
 
     const test_step = b.step("test", "Run all tests");
     test_step.dependOn(&run_lib_unit_tests.step);
@@ -308,6 +318,9 @@ pub fn build(b: *std.Build) void {
     const enhanced_batch_test_step = b.step("test-enhanced-batch", "Run enhanced batch operation tests");
     enhanced_batch_test_step.dependOn(&run_enhanced_batch_tests.step);
 
+    const spatial_view_test_step = b.step("test-spatial-view", "Run spatial view tests");
+    spatial_view_test_step.dependOn(&run_spatial_view_tests.step);
+
     const all_tests_step = b.step("test-all", "Run all test suites");
     all_tests_step.dependOn(&run_lib_unit_tests.step);
     all_tests_step.dependOn(&run_unit_tests.step);
@@ -327,4 +340,5 @@ pub fn build(b: *std.Build) void {
     all_tests_step.dependOn(&run_collections_phase3_tests.step);
     all_tests_step.dependOn(&run_batch_tests.step);
     all_tests_step.dependOn(&run_enhanced_batch_tests.step);
+    all_tests_step.dependOn(&run_spatial_view_tests.step);
 }

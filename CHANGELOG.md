@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.5] - 2025-10-13
+
+### Added
+- Spatial Views implementation for backward compatibility
+- spatialViewQuery() function with geospatial parameters
+- BoundingBox and SpatialRange data structures for geospatial queries
+- SpatialViewOptions with complete configuration options
+- Comprehensive spatial view test suite with 8 test cases
+- Deprecation warnings for spatial view usage
+- Migration guidance to Full-Text Search (FTS)
+
+### Changed
+- Enhanced view functionality with spatial query support
+- Added deprecation warnings for spatial view usage
+- Improved error handling for unsupported operations
+
+### Deprecated
+- Spatial views are deprecated in Couchbase Server 6.0+
+- Users are encouraged to migrate to Full-Text Search (FTS) for geospatial queries
+- Spatial view functionality may not work with newer Couchbase Server versions
+
 ## [0.4.4] - 2025-10-13
 
 ### Added
