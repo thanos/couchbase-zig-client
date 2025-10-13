@@ -118,6 +118,66 @@ pub const Client = struct {
         return operations.getWithCollection(self, key, collection);
     }
 
+    /// Upsert a document with collection
+    pub fn upsertWithCollection(self: *Client, key: []const u8, value: []const u8, collection: types.Collection, options: operations.StoreOptions) Error!operations.MutationResult {
+        return operations.upsertWithCollection(self, key, value, collection, options);
+    }
+
+    /// Insert a document with collection
+    pub fn insertWithCollection(self: *Client, key: []const u8, value: []const u8, collection: types.Collection, options: operations.StoreOptions) Error!operations.MutationResult {
+        return operations.insertWithCollection(self, key, value, collection, options);
+    }
+
+    /// Replace a document with collection
+    pub fn replaceWithCollection(self: *Client, key: []const u8, value: []const u8, collection: types.Collection, options: operations.StoreOptions) Error!operations.MutationResult {
+        return operations.replaceWithCollection(self, key, value, collection, options);
+    }
+
+    /// Remove a document with collection
+    pub fn removeWithCollection(self: *Client, key: []const u8, collection: types.Collection, options: operations.RemoveOptions) Error!operations.MutationResult {
+        return operations.removeWithCollection(self, key, collection, options);
+    }
+
+    /// Touch a document with collection
+    pub fn touchWithCollection(self: *Client, key: []const u8, collection: types.Collection, expiry: u32) Error!operations.MutationResult {
+        return operations.touchWithCollection(self, key, collection, expiry);
+    }
+
+    /// Counter operation with collection
+    pub fn counterWithCollection(self: *Client, key: []const u8, collection: types.Collection, delta: i64, options: operations.CounterOptions) Error!operations.CounterResult {
+        return operations.counterWithCollection(self, key, collection, delta, options);
+    }
+
+    /// Check if document exists with collection
+    pub fn existsWithCollection(self: *Client, key: []const u8, collection: types.Collection) Error!bool {
+        return operations.existsWithCollection(self, key, collection);
+    }
+
+    /// Get and lock a document with collection
+    pub fn getAndLockWithCollection(self: *Client, key: []const u8, collection: types.Collection, options: types.GetAndLockOptions) Error!operations.GetAndLockResult {
+        return operations.getAndLockWithCollection(self, key, collection, options);
+    }
+
+    /// Unlock a document with collection
+    pub fn unlockWithCollection(self: *Client, key: []const u8, cas: u64, collection: types.Collection) Error!void {
+        return operations.unlockWithCollection(self, key, cas, collection);
+    }
+
+    /// Get from replica with collection
+    pub fn getReplicaWithCollection(self: *Client, key: []const u8, collection: types.Collection, mode: types.ReplicaMode) Error!operations.GetResult {
+        return operations.getReplicaWithCollection(self, key, collection, mode);
+    }
+
+    /// Subdocument lookup with collection
+    pub fn lookupInWithCollection(self: *Client, allocator: std.mem.Allocator, key: []const u8, collection: types.Collection, specs: []const operations.SubdocSpec) Error!operations.SubdocResult {
+        return operations.lookupInWithCollection(self, allocator, key, collection, specs);
+    }
+
+    /// Subdocument mutation with collection
+    pub fn mutateInWithCollection(self: *Client, allocator: std.mem.Allocator, key: []const u8, collection: types.Collection, specs: []const operations.SubdocSpec, options: operations.SubdocOptions) Error!operations.SubdocResult {
+        return operations.mutateInWithCollection(self, allocator, key, collection, specs, options);
+    }
+
     /// Get collection manifest
     pub fn getCollectionManifest(self: *Client, allocator: std.mem.Allocator) Error!types.CollectionManifest {
         return operations.getCollectionManifest(self, allocator);

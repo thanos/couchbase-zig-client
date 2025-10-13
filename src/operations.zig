@@ -588,6 +588,87 @@ pub fn getAndLock(client: *Client, key: []const u8, options: types.GetAndLockOpt
     };
 }
 
+/// Get and lock operation with collection
+pub fn getAndLockWithCollection(client: *Client, key: []const u8, collection: types.Collection, options: types.GetAndLockOptions) Error!GetAndLockResult {
+    var ctx = GetContext{ .allocator = client.allocator };
+    
+    var cmd: ?*c.lcb_CMDGET = null;
+    _ = c.lcb_cmdget_create(&cmd);
+    defer _ = c.lcb_cmdget_destroy(cmd);
+    
+    _ = c.lcb_cmdget_key(cmd, key.ptr, key.len);
+    _ = c.lcb_cmdget_timeout(cmd, options.timeout_ms);
+    _ = c.lcb_cmdget_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
+    
+    // Set lock time (this is the key difference from regular get)
+    _ = c.lcb_cmdget_locktime(cmd, options.lock_time);
+
+    // Set durability if specified
+    // Note: Durability for GET operations is not supported in libcouchbase
+    _ = options.durability; // Suppress unused variable warning
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGET) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respget_cookie(resp, &cookie);
+            var context: *GetContext = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respget_status(resp);
+            if (rc != c.LCB_SUCCESS) {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+                context.done = true;
+                return;
+            }
+            
+            var value_ptr: [*c]const u8 = undefined;
+            var value_len: usize = undefined;
+            _ = c.lcb_respget_value(resp, &value_ptr, &value_len);
+            
+            var cas: u64 = undefined;
+            _ = c.lcb_respget_cas(resp, &cas);
+            
+            var flags: u32 = undefined;
+            _ = c.lcb_respget_flags(resp, &flags);
+            
+            const value = context.allocator.dupe(u8, value_ptr[0..value_len]) catch {
+                context.err = error.OutOfMemory;
+                context.done = true;
+                return;
+            };
+            
+            context.result = GetResult{
+                .value = value,
+                .cas = cas,
+                .flags = flags,
+                .allocator = context.allocator,
+            };
+            context.done = true;
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_GET, @ptrCast(&callback));
+    
+    var rc = c.lcb_get(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| return err;
+    const get_result = ctx.result orelse return error.Unknown;
+    
+    return GetAndLockResult{
+        .value = get_result.value,
+        .cas = get_result.cas,
+        .flags = get_result.flags,
+        .lock_time = options.lock_time,
+        .allocator = client.allocator,
+    };
+}
+
 /// Unlock operation with options
 pub fn unlockWithOptions(client: *Client, key: []const u8, cas: u64, options: types.UnlockOptions) Error!UnlockResult {
     var ctx = UnlockContext{};
@@ -709,6 +790,153 @@ pub fn getFromReplica(client: *Client, key: []const u8, mode: types.ReplicaMode)
     return ctx.result orelse error.Unknown;
 }
 
+/// Get from replica with collection
+pub fn getReplicaWithCollection(client: *Client, key: []const u8, collection: types.Collection, mode: types.ReplicaMode) Error!GetResult {
+    var ctx = GetContext{ .allocator = client.allocator };
+    
+    var cmd: ?*c.lcb_CMDGETREPLICA = null;
+    _ = c.lcb_cmdgetreplica_create(&cmd, switch (mode) {
+        .any => c.LCB_REPLICA_MODE_ANY,
+        .all => c.LCB_REPLICA_MODE_ALL,
+        .index => c.LCB_REPLICA_MODE_IDX0,
+    });
+    defer _ = c.lcb_cmdgetreplica_destroy(cmd);
+    
+    _ = c.lcb_cmdgetreplica_key(cmd, key.ptr, key.len);
+    _ = c.lcb_cmdgetreplica_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGETREPLICA) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respgetreplica_cookie(resp, &cookie);
+            var context: *GetContext = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respgetreplica_status(resp);
+            if (rc != c.LCB_SUCCESS) {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+                context.done = true;
+                return;
+            }
+            
+            var value_ptr: [*c]const u8 = undefined;
+            var value_len: usize = undefined;
+            _ = c.lcb_respgetreplica_value(resp, &value_ptr, &value_len);
+            
+            var cas: u64 = undefined;
+            _ = c.lcb_respgetreplica_cas(resp, &cas);
+            
+            var flags: u32 = undefined;
+            _ = c.lcb_respgetreplica_flags(resp, &flags);
+            
+            const value_copy = context.allocator.dupe(u8, value_ptr[0..value_len]) catch {
+                context.err = error.OutOfMemory;
+                context.done = true;
+                return;
+            };
+            
+            context.result = GetResult{
+                .value = value_copy,
+                .cas = cas,
+                .flags = flags,
+                .allocator = context.allocator,
+            };
+            context.done = true;
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_GETREPLICA, @ptrCast(&callback));
+    
+    var rc = c.lcb_getreplica(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| return err;
+    return ctx.result orelse error.Unknown;
+}
+
+/// Store operation with collection (upsert, insert, replace)
+pub fn storeWithCollection(client: *Client, key: []const u8, value: []const u8, operation: types.StoreOperation, options: StoreOptions, collection: types.Collection) Error!MutationResult {
+    var ctx = MutationContext{};
+    
+    var cmd: ?*c.lcb_CMDSTORE = null;
+    _ = c.lcb_cmdstore_create(&cmd, @intFromEnum(operation));
+    defer _ = c.lcb_cmdstore_destroy(cmd);
+    
+    _ = c.lcb_cmdstore_key(cmd, key.ptr, key.len);
+    _ = c.lcb_cmdstore_value(cmd, value.ptr, value.len);
+    _ = c.lcb_cmdstore_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
+    
+    // Operation type is already set in lcb_cmdstore_create
+    
+    // Set options
+    if (options.expiry > 0) {
+        _ = c.lcb_cmdstore_expiry(cmd, options.expiry);
+    }
+    
+    if (options.durability.level != .none) {
+        _ = c.lcb_cmdstore_durability(cmd, @intFromEnum(options.durability.level));
+    }
+    
+    if (options.flags > 0) {
+        _ = c.lcb_cmdstore_flags(cmd, options.flags);
+    }
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSTORE) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respstore_cookie(resp, &cookie);
+            var context: *MutationContext = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respstore_status(resp);
+            if (rc != c.LCB_SUCCESS) {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+                context.done = true;
+                return;
+            }
+            
+            var cas: u64 = undefined;
+            _ = c.lcb_respstore_cas(resp, &cas);
+            
+            context.result.cas = cas;
+            context.done = true;
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_STORE, @ptrCast(&callback));
+    
+    var rc = c.lcb_store(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| return err;
+    return ctx.result;
+}
+
+/// Upsert operation with collection
+pub fn upsertWithCollection(client: *Client, key: []const u8, value: []const u8, collection: types.Collection, options: StoreOptions) Error!MutationResult {
+    return storeWithCollection(client, key, value, .upsert, options, collection);
+}
+
+/// Insert operation with collection
+pub fn insertWithCollection(client: *Client, key: []const u8, value: []const u8, collection: types.Collection, options: StoreOptions) Error!MutationResult {
+    return storeWithCollection(client, key, value, .insert, options, collection);
+}
+
+/// Replace operation with collection
+pub fn replaceWithCollection(client: *Client, key: []const u8, value: []const u8, collection: types.Collection, options: StoreOptions) Error!MutationResult {
+    return storeWithCollection(client, key, value, .replace, options, collection);
+}
+
 /// Store operation (upsert/insert/replace)
 pub fn store(client: *Client, key: []const u8, value: []const u8, operation: types.StoreOperation, options: StoreOptions) Error!MutationResult {
     var ctx = MutationContext{};
@@ -826,6 +1054,61 @@ pub fn remove(client: *Client, key: []const u8, options: RemoveOptions) Error!Mu
     return ctx.result;
 }
 
+/// Remove operation with collection
+pub fn removeWithCollection(client: *Client, key: []const u8, collection: types.Collection, options: RemoveOptions) Error!MutationResult {
+    var ctx = MutationContext{};
+    
+    var cmd: ?*c.lcb_CMDREMOVE = null;
+    _ = c.lcb_cmdremove_create(&cmd);
+    defer _ = c.lcb_cmdremove_destroy(cmd);
+    
+    _ = c.lcb_cmdremove_key(cmd, key.ptr, key.len);
+    _ = c.lcb_cmdremove_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
+    
+    if (options.cas > 0) {
+        _ = c.lcb_cmdremove_cas(cmd, options.cas);
+    }
+    
+    if (options.durability.level != .none) {
+        _ = c.lcb_cmdremove_durability(cmd, @intFromEnum(options.durability.level));
+    }
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPREMOVE) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respremove_cookie(resp, &cookie);
+            var context: *MutationContext = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respremove_status(resp);
+            if (rc != c.LCB_SUCCESS) {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+                context.done = true;
+                return;
+            }
+            
+            var cas: u64 = undefined;
+            _ = c.lcb_respremove_cas(resp, &cas);
+            
+            context.result.cas = cas;
+            context.done = true;
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_REMOVE, @ptrCast(&callback));
+    
+    var rc = c.lcb_remove(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| return err;
+    return ctx.result;
+}
+
 /// Counter operation
 pub fn counter(client: *Client, key: []const u8, delta: i64, options: CounterOptions) Error!CounterResult {
     var ctx = CounterContext{};
@@ -837,6 +1120,67 @@ pub fn counter(client: *Client, key: []const u8, delta: i64, options: CounterOpt
     _ = c.lcb_cmdcounter_key(cmd, key.ptr, key.len);
     _ = c.lcb_cmdcounter_delta(cmd, delta);
     _ = c.lcb_cmdcounter_initial(cmd, options.initial);
+    
+    if (options.expiry > 0) {
+        _ = c.lcb_cmdcounter_expiry(cmd, options.expiry);
+    }
+    
+    if (options.durability.level != .none) {
+        _ = c.lcb_cmdcounter_durability(cmd, @intFromEnum(options.durability.level));
+    }
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPCOUNTER) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respcounter_cookie(resp, &cookie);
+            var context: *CounterContext = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respcounter_status(resp);
+            if (rc != c.LCB_SUCCESS) {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+                context.done = true;
+                return;
+            }
+            
+            var cas: u64 = 0;
+            _ = c.lcb_respcounter_cas(resp, &cas);
+            
+            var value: u64 = 0;
+            _ = c.lcb_respcounter_value(resp, &value);
+            
+            context.result.cas = cas;
+            context.result.value = value;
+            context.done = true;
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_COUNTER, @ptrCast(&callback));
+    
+    var rc = c.lcb_counter(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| return err;
+    return ctx.result;
+}
+
+/// Counter operation with collection
+pub fn counterWithCollection(client: *Client, key: []const u8, collection: types.Collection, delta: i64, options: CounterOptions) Error!CounterResult {
+    var ctx = CounterContext{};
+    
+    var cmd: ?*c.lcb_CMDCOUNTER = null;
+    _ = c.lcb_cmdcounter_create(&cmd);
+    defer _ = c.lcb_cmdcounter_destroy(cmd);
+    
+    _ = c.lcb_cmdcounter_key(cmd, key.ptr, key.len);
+    _ = c.lcb_cmdcounter_delta(cmd, delta);
+    _ = c.lcb_cmdcounter_initial(cmd, options.initial);
+    _ = c.lcb_cmdcounter_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
     
     if (options.expiry > 0) {
         _ = c.lcb_cmdcounter_expiry(cmd, options.expiry);
@@ -933,6 +1277,54 @@ pub fn touch(client: *Client, key: []const u8, expiry: u32) Error!MutationResult
     return ctx.result;
 }
 
+/// Touch operation with collection
+pub fn touchWithCollection(client: *Client, key: []const u8, collection: types.Collection, expiry: u32) Error!MutationResult {
+    var ctx = MutationContext{};
+    
+    var cmd: ?*c.lcb_CMDTOUCH = null;
+    _ = c.lcb_cmdtouch_create(&cmd);
+    defer _ = c.lcb_cmdtouch_destroy(cmd);
+    
+    _ = c.lcb_cmdtouch_key(cmd, key.ptr, key.len);
+    _ = c.lcb_cmdtouch_expiry(cmd, expiry);
+    _ = c.lcb_cmdtouch_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPTOUCH) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_resptouch_cookie(resp, &cookie);
+            var context: *MutationContext = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_resptouch_status(resp);
+            if (rc != c.LCB_SUCCESS) {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+                context.done = true;
+                return;
+            }
+            
+            var cas: u64 = undefined;
+            _ = c.lcb_resptouch_cas(resp, &cas);
+            
+            context.result.cas = cas;
+            context.done = true;
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_TOUCH, @ptrCast(&callback));
+    
+    var rc = c.lcb_touch(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| return err;
+    return ctx.result;
+}
+
 /// Unlock operation
 pub fn unlock(client: *Client, key: []const u8, cas: u64) Error!void {
     var ctx = MutationContext{};
@@ -943,6 +1335,49 @@ pub fn unlock(client: *Client, key: []const u8, cas: u64) Error!void {
     
     _ = c.lcb_cmdunlock_key(cmd, key.ptr, key.len);
     _ = c.lcb_cmdunlock_cas(cmd, cas);
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPUNLOCK) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respunlock_cookie(resp, &cookie);
+            var context: *MutationContext = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respunlock_status(resp);
+            if (rc != c.LCB_SUCCESS) {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+                context.done = true;
+                return;
+            }
+            
+            context.done = true;
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_UNLOCK, @ptrCast(&callback));
+    
+    var rc = c.lcb_unlock(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| return err;
+}
+
+/// Unlock operation with collection
+pub fn unlockWithCollection(client: *Client, key: []const u8, cas: u64, collection: types.Collection) Error!void {
+    var ctx = MutationContext{};
+    
+    var cmd: ?*c.lcb_CMDUNLOCK = null;
+    _ = c.lcb_cmdunlock_create(&cmd);
+    defer _ = c.lcb_cmdunlock_destroy(cmd);
+    
+    _ = c.lcb_cmdunlock_key(cmd, key.ptr, key.len);
+    _ = c.lcb_cmdunlock_cas(cmd, cas);
+    _ = c.lcb_cmdunlock_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
     
     const callback = struct {
         fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPUNLOCK) callconv(.C) void {
@@ -1411,6 +1846,59 @@ pub fn exists(client: *Client, key: []const u8) Error!bool {
     return ctx.exists;
 }
 
+/// Exists operation with collection
+pub fn existsWithCollection(client: *Client, key: []const u8, collection: types.Collection) Error!bool {
+    var ctx = struct {
+        exists: bool = false,
+        err: ?Error = null,
+        done: bool = false,
+    }{};
+    
+    var cmd: ?*c.lcb_CMDEXISTS = null;
+    _ = c.lcb_cmdexists_create(&cmd);
+    defer _ = c.lcb_cmdexists_destroy(cmd);
+    
+    _ = c.lcb_cmdexists_key(cmd, key.ptr, key.len);
+    _ = c.lcb_cmdexists_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPEXISTS) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respexists_cookie(resp, &cookie);
+            const Context = @TypeOf(ctx);
+            var context: *Context = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respexists_status(resp);
+            
+            // Determine if document exists based on status
+            if (rc == c.LCB_ERR_DOCUMENT_NOT_FOUND) {
+                context.exists = false;
+            } else if (rc == c.LCB_SUCCESS) {
+                // Check if document actually exists using is_found
+                const found = c.lcb_respexists_is_found(resp);
+                context.exists = (found != 0);
+            } else {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+            }
+            context.done = true;
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_EXISTS, @ptrCast(&callback));
+    
+    var rc = c.lcb_exists(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| return err;
+    return ctx.exists;
+}
+
 /// Subdocument lookup
 pub fn lookupIn(client: *Client, allocator: std.mem.Allocator, key: []const u8, specs: []const SubdocSpec) Error!SubdocResult {
     var ctx = struct {
@@ -1441,6 +1929,121 @@ pub fn lookupIn(client: *Client, allocator: std.mem.Allocator, key: []const u8, 
     
     _ = c.lcb_cmdsubdoc_key(cmd, key.ptr, key.len);
     _ = c.lcb_cmdsubdoc_specs(cmd, subdoc_specs);
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSUBDOC) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respsubdoc_cookie(resp, &cookie);
+            const Context = @TypeOf(ctx);
+            var context: *Context = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respsubdoc_status(resp);
+            if (rc != c.LCB_SUCCESS) {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+                context.done = true;
+                return;
+            }
+            
+            var cas: u64 = 0;
+            _ = c.lcb_respsubdoc_cas(resp, &cas);
+            context.cas = cas;
+            
+            // Get all results
+            var idx: usize = 0;
+            while (idx < context.num_specs) : (idx += 1) {
+                var value_ptr: [*c]const u8 = undefined;
+                var value_len: usize = undefined;
+                const result_rc = c.lcb_respsubdoc_result_value(resp, idx, &value_ptr, &value_len);
+                
+                if (result_rc == c.LCB_SUCCESS and value_len > 0) {
+                    const value_copy = context.allocator.dupe(u8, value_ptr[0..value_len]) catch {
+                        context.err = error.OutOfMemory;
+                        context.done = true;
+                        return;
+                    };
+                    context.values.append(value_copy) catch {
+                        context.allocator.free(value_copy);
+                        context.err = error.OutOfMemory;
+                        context.done = true;
+                        return;
+                    };
+                } else {
+                    // Empty or error result
+                    const empty = context.allocator.dupe(u8, "") catch {
+                        context.err = error.OutOfMemory;
+                        context.done = true;
+                        return;
+                    };
+                    context.values.append(empty) catch {
+                        context.allocator.free(empty);
+                        context.err = error.OutOfMemory;
+                        context.done = true;
+                        return;
+                    };
+                }
+            }
+            
+            context.done = true;
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_SDLOOKUP, @ptrCast(&callback));
+    
+    var rc = c.lcb_subdoc(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| {
+        for (ctx.values.items) |val| {
+            allocator.free(val);
+        }
+        ctx.values.deinit();
+        return err;
+    }
+    
+    return SubdocResult{
+        .cas = ctx.cas,
+        .values = try ctx.values.toOwnedSlice(),
+        .allocator = allocator,
+    };
+}
+
+/// Subdocument lookup with collection
+pub fn lookupInWithCollection(client: *Client, allocator: std.mem.Allocator, key: []const u8, collection: types.Collection, specs: []const SubdocSpec) Error!SubdocResult {
+    var ctx = struct {
+        cas: u64 = 0,
+        values: std.ArrayList([]const u8),
+        err: ?Error = null,
+        done: bool = false,
+        allocator: std.mem.Allocator,
+        num_specs: usize,
+    }{
+        .values = std.ArrayList([]const u8).init(allocator),
+        .allocator = allocator,
+        .num_specs = specs.len,
+    };
+    
+    // Create subdoc specs
+    var subdoc_specs: ?*c.lcb_SUBDOCSPECS = null;
+    _ = c.lcb_subdocspecs_create(&subdoc_specs, specs.len);
+    defer _ = c.lcb_subdocspecs_destroy(subdoc_specs);
+    
+    for (specs, 0..) |spec, i| {
+        _ = c.lcb_subdocspecs_get(subdoc_specs, i, 0, spec.path.ptr, spec.path.len);
+    }
+    
+    var cmd: ?*c.lcb_CMDSUBDOC = null;
+    _ = c.lcb_cmdsubdoc_create(&cmd);
+    defer _ = c.lcb_cmdsubdoc_destroy(cmd);
+    
+    _ = c.lcb_cmdsubdoc_key(cmd, key.ptr, key.len);
+    _ = c.lcb_cmdsubdoc_specs(cmd, subdoc_specs);
+    _ = c.lcb_cmdsubdoc_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
     
     const callback = struct {
         fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSUBDOC) callconv(.C) void {
@@ -1572,6 +2175,115 @@ pub fn mutateIn(client: *Client, allocator: std.mem.Allocator, key: []const u8, 
     
     _ = c.lcb_cmdsubdoc_key(cmd, key.ptr, key.len);
     _ = c.lcb_cmdsubdoc_specs(cmd, subdoc_specs);
+    
+    if (options.cas > 0) {
+        _ = c.lcb_cmdsubdoc_cas(cmd, options.cas);
+    }
+    
+    if (options.expiry > 0) {
+        _ = c.lcb_cmdsubdoc_expiry(cmd, options.expiry);
+    }
+    
+    if (options.durability.level != .none) {
+        _ = c.lcb_cmdsubdoc_durability(cmd, @intFromEnum(options.durability.level));
+    }
+    
+    const callback = struct {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSUBDOC) callconv(.C) void {
+            _ = instance;
+            _ = cbtype;
+            
+            var cookie: ?*anyopaque = null;
+            _ = c.lcb_respsubdoc_cookie(resp, &cookie);
+            const Context = @TypeOf(ctx);
+            var context: *Context = @ptrCast(@alignCast(cookie));
+            
+            const rc = c.lcb_respsubdoc_status(resp);
+            if (rc != c.LCB_SUCCESS) {
+                fromStatusCode(rc) catch |err| { context.err = err; };
+                context.done = true;
+                return;
+            }
+            
+            var cas: u64 = 0;
+            _ = c.lcb_respsubdoc_cas(resp, &cas);
+            context.cas = cas;
+            
+            context.done = true;
+        }
+    }.cb;
+    
+    _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_SDMUTATE, @ptrCast(&callback));
+    
+    var rc = c.lcb_subdoc(client.instance, &ctx, cmd);
+    try fromStatusCode(rc);
+    
+    rc = c.lcb_wait(client.instance, 0);
+    try fromStatusCode(rc);
+    
+    if (ctx.err) |err| {
+        for (ctx.values.items) |val| {
+            allocator.free(val);
+        }
+        ctx.values.deinit();
+        return err;
+    }
+    
+    return SubdocResult{
+        .cas = ctx.cas,
+        .values = try ctx.values.toOwnedSlice(),
+        .allocator = allocator,
+    };
+}
+
+/// Subdocument mutation with collection
+pub fn mutateInWithCollection(client: *Client, allocator: std.mem.Allocator, key: []const u8, collection: types.Collection, specs: []const SubdocSpec, options: SubdocOptions) Error!SubdocResult {
+    var ctx = struct {
+        cas: u64 = 0,
+        values: std.ArrayList([]const u8),
+        err: ?Error = null,
+        done: bool = false,
+        allocator: std.mem.Allocator,
+        num_specs: usize,
+    }{
+        .values = std.ArrayList([]const u8).init(allocator),
+        .allocator = allocator,
+        .num_specs = specs.len,
+    };
+    
+    // Create subdoc specs
+    var subdoc_specs: ?*c.lcb_SUBDOCSPECS = null;
+    _ = c.lcb_subdocspecs_create(&subdoc_specs, specs.len);
+    defer _ = c.lcb_subdocspecs_destroy(subdoc_specs);
+    
+    for (specs, 0..) |spec, i| {
+        switch (spec.op) {
+            .get => _ = c.lcb_subdocspecs_get(subdoc_specs, i, 0, spec.path.ptr, spec.path.len),
+            .exists => _ = c.lcb_subdocspecs_exists(subdoc_specs, i, 0, spec.path.ptr, spec.path.len),
+            .replace => _ = c.lcb_subdocspecs_replace(subdoc_specs, i, 0, spec.path.ptr, spec.path.len, spec.value.ptr, spec.value.len),
+            .dict_add => _ = c.lcb_subdocspecs_dict_add(subdoc_specs, i, 0, spec.path.ptr, spec.path.len, spec.value.ptr, spec.value.len),
+            .dict_upsert => _ = c.lcb_subdocspecs_dict_upsert(subdoc_specs, i, 0, spec.path.ptr, spec.path.len, spec.value.ptr, spec.value.len),
+            .array_add_first => _ = c.lcb_subdocspecs_array_add_first(subdoc_specs, i, 0, spec.path.ptr, spec.path.len, spec.value.ptr, spec.value.len),
+            .array_add_last => _ = c.lcb_subdocspecs_array_add_last(subdoc_specs, i, 0, spec.path.ptr, spec.path.len, spec.value.ptr, spec.value.len),
+            .array_add_unique => _ = c.lcb_subdocspecs_array_add_unique(subdoc_specs, i, 0, spec.path.ptr, spec.path.len, spec.value.ptr, spec.value.len),
+            .array_insert => _ = c.lcb_subdocspecs_array_insert(subdoc_specs, i, 0, spec.path.ptr, spec.path.len, spec.value.ptr, spec.value.len),
+            .delete => _ = c.lcb_subdocspecs_remove(subdoc_specs, i, 0, spec.path.ptr, spec.path.len),
+            .counter => {
+                // Counter takes an i64 delta, not a value string
+                const delta = std.fmt.parseInt(i64, spec.value, 10) catch 0;
+                _ = c.lcb_subdocspecs_counter(subdoc_specs, i, 0, spec.path.ptr, spec.path.len, delta);
+            },
+            .get_count => _ = c.lcb_subdocspecs_get_count(subdoc_specs, i, 0, spec.path.ptr, spec.path.len),
+        }
+    }
+    
+    var cmd: ?*c.lcb_CMDSUBDOC = null;
+    _ = c.lcb_cmdsubdoc_create(&cmd);
+    defer _ = c.lcb_cmdsubdoc_destroy(cmd);
+    
+    _ = c.lcb_cmdsubdoc_key(cmd, key.ptr, key.len);
+    _ = c.lcb_cmdsubdoc_specs(cmd, subdoc_specs);
+    _ = c.lcb_cmdsubdoc_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
     
     if (options.cas > 0) {
         _ = c.lcb_cmdsubdoc_cas(cmd, options.cas);
