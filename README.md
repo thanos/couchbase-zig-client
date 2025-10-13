@@ -3,10 +3,8 @@
 
 Zig wrapper for the libcouchbase C library.
 
-<img width="512" height="512" alt="Gemini_Generated_Image_2djlhc2djlhc2djl (1)" src="https://github.com/user-attachments/assets/be04a5c1-5d8c-43aa-9073-0a249f51044f" />
 
-
-
+<img width="500" alt="couchbase-zig-client" src="https://github.com/user-attachments/assets/4f2e44b5-ccab-45c4-93c3-dd192d106a52" />
 
 
 
