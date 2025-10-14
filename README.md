@@ -4,7 +4,8 @@
 Zig wrapper for the libcouchbase C library.
 
 
-<img width="500" alt="couchbase-zig-client" src="https://github.com/user-attachments/assets/4f2e44b5-ccab-45c4-93c3-dd192d106a52" />
+<img width="500"  alt="couchbase-zig-client-4" src="https://github.com/user-attachments/assets/4d05609a-be78-4ee6-a973-335568dab896" />
+
 
 
 
