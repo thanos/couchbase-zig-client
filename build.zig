@@ -238,6 +238,15 @@ pub fn build(b: *std.Build) void {
     spatial_view_tests.linkSystemLibrary("couchbase");
     spatial_view_tests.linkLibC();
 
+    const durability_tests = b.addTest(.{
+        .root_source_file = b.path("tests/durability_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    durability_tests.root_module.addImport("couchbase", couchbase_module);
+    durability_tests.linkSystemLibrary("couchbase");
+    durability_tests.linkLibC();
+
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const run_integration_tests = b.addRunArtifact(integration_tests);
@@ -258,6 +267,7 @@ pub fn build(b: *std.Build) void {
     const run_batch_tests = b.addRunArtifact(batch_tests);
     const run_enhanced_batch_tests = b.addRunArtifact(enhanced_batch_tests);
     const run_spatial_view_tests = b.addRunArtifact(spatial_view_tests);
+    const run_durability_tests = b.addRunArtifact(durability_tests);
 
     const test_step = b.step("test", "Run all tests");
     test_step.dependOn(&run_lib_unit_tests.step);
@@ -321,6 +331,9 @@ pub fn build(b: *std.Build) void {
     const spatial_view_test_step = b.step("test-spatial-view", "Run spatial view tests");
     spatial_view_test_step.dependOn(&run_spatial_view_tests.step);
 
+    const durability_test_step = b.step("test-durability", "Run durability and consistency tests");
+    durability_test_step.dependOn(&run_durability_tests.step);
+
     const all_tests_step = b.step("test-all", "Run all test suites");
     all_tests_step.dependOn(&run_lib_unit_tests.step);
     all_tests_step.dependOn(&run_unit_tests.step);
@@ -341,4 +354,5 @@ pub fn build(b: *std.Build) void {
     all_tests_step.dependOn(&run_batch_tests.step);
     all_tests_step.dependOn(&run_enhanced_batch_tests.step);
     all_tests_step.dependOn(&run_spatial_view_tests.step);
+    all_tests_step.dependOn(&run_durability_tests.step);
 }

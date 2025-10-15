@@ -299,6 +299,61 @@ pub const Client = struct {
         return views.spatialViewQuery(self, allocator, design_doc, view_name, options);
     }
 
+    /// Store operation with full durability and mutation token support
+    pub fn storeWithDurability(
+        self: *Client,
+        key: []const u8,
+        value: []const u8,
+        operation: @import("types.zig").StoreOperation,
+        options: @import("operations.zig").StoreOptions,
+        allocator: std.mem.Allocator,
+    ) Error!@import("operations.zig").MutationResult {
+        return operations.storeWithDurability(self, key, value, operation, options, allocator);
+    }
+
+    /// Observe operation for durability checking
+    pub fn observe(
+        self: *Client,
+        key: []const u8,
+        cas: u64,
+        options: @import("types.zig").ObserveOptions,
+        allocator: std.mem.Allocator,
+    ) Error!@import("types.zig").ObserveResult {
+        return operations.observe(self, key, cas, options, allocator);
+    }
+
+    /// Observe multiple keys for durability checking
+    pub fn observeMulti(
+        self: *Client,
+        keys: []const []const u8,
+        cas_values: []const u64,
+        options: @import("types.zig").ObserveOptions,
+        allocator: std.mem.Allocator,
+    ) Error![]@import("types.zig").ObserveResult {
+        return operations.observeMulti(self, keys, cas_values, options, allocator);
+    }
+
+    /// Wait for durability using observe
+    pub fn waitForDurability(
+        self: *Client,
+        key: []const u8,
+        cas: u64,
+        durability: @import("types.zig").ObserveDurability,
+        allocator: std.mem.Allocator,
+    ) Error!void {
+        return operations.waitForDurability(self, key, cas, durability, allocator);
+    }
+
+    /// Wait for durability using mutation token
+    pub fn waitForDurabilityWithToken(
+        self: *Client,
+        token: @import("types.zig").MutationToken,
+        durability: @import("types.zig").ObserveDurability,
+        allocator: std.mem.Allocator,
+    ) Error!void {
+        return operations.waitForDurabilityWithToken(self, token, durability, allocator);
+    }
+
     /// Execute an analytics query
     pub fn analyticsQuery(
         self: *Client,

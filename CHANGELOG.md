@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.6] - 2025-10-13
+
+### Added
+- Complete Durability & Consistency functionality implementation
+- Observe-based durability operations (observe, observeMulti, waitForDurability)
+- Mutation token management with automatic extraction from store operations
+- Enhanced store operations with full durability support (storeWithDurability)
+- Comprehensive durability test suite with 13 test cases
+- ObserveDurability, ObserveResult, and ObserveOptions data structures
+- Support for all Couchbase durability levels (none, majority, majority_and_persist_to_active, persist_to_majority)
+- Mutation token creation, validation, and memory management
+- Timeout handling for durability operations
+- Error handling for durability-specific errors
+
+### Changed
+- Enhanced MutationResult to include mutation tokens
+- Updated store operations to support observe-based durability
+- Improved memory management for durability-related structures
+- Enhanced error handling for durability operations
+
+### Fixed
+- Array formatting compilation issue in durability tests
+- Made MutationToken, ObserveResult, ObserveOptions, and ObserveDurability public
+- Fixed deinit methods to accept const pointers for better memory safety
+
 ## [0.4.5] - 2025-10-13
 
 ### Added

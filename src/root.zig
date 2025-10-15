@@ -19,6 +19,10 @@ pub const ViewOptions = views.ViewOptions;
 pub const ViewStale = views.ViewStale;
 pub const Durability = types.Durability;
 pub const DurabilityLevel = types.DurabilityLevel;
+pub const ObserveDurability = types.ObserveDurability;
+pub const MutationToken = types.MutationToken;
+pub const ObserveResult = types.ObserveResult;
+pub const ObserveOptions = types.ObserveOptions;
 
     // Advanced query types
     pub const QueryProfile = types.QueryProfile;

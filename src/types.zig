@@ -23,6 +23,58 @@ pub const Durability = struct {
     timeout_ms: u32 = 0,
 };
 
+/// Observe-based durability settings
+pub const ObserveDurability = struct {
+    persist_to_master: bool = true,
+    replicate_to_count: u32 = 0,
+    timeout_ms: u32 = 5000,
+};
+
+/// Mutation token for durability
+pub const MutationToken = struct {
+    partition_id: u16,
+    partition_uuid: u64,
+    sequence_number: u64,
+    bucket_name: []const u8,
+    allocator: std.mem.Allocator,
+    
+    pub fn deinit(self: *const MutationToken) void {
+        self.allocator.free(self.bucket_name);
+    }
+    
+    /// Create a mutation token
+    pub fn create(partition_id: u16, partition_uuid: u64, sequence_number: u64, bucket_name: []const u8, allocator: std.mem.Allocator) !MutationToken {
+        return MutationToken{
+            .partition_id = partition_id,
+            .partition_uuid = partition_uuid,
+            .sequence_number = sequence_number,
+            .bucket_name = try allocator.dupe(u8, bucket_name),
+            .allocator = allocator,
+        };
+    }
+};
+
+/// Observe result
+pub const ObserveResult = struct {
+    key: []const u8,
+    cas: u64,
+    persisted: bool,
+    replicated: bool,
+    replicate_count: u32,
+    allocator: std.mem.Allocator,
+    
+    pub fn deinit(self: *const ObserveResult) void {
+        self.allocator.free(self.key);
+    }
+};
+
+/// Observe options
+pub const ObserveOptions = struct {
+    timeout_ms: u32 = 5000,
+    persist_to_master: bool = true,
+    replicate_to_count: u32 = 0,
+};
+
 /// Store operation type
 pub const StoreOperation = enum(c_uint) {
     upsert = c.LCB_STORE_UPSERT,

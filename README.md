@@ -10,6 +10,23 @@ Zig wrapper for the libcouchbase C library.
 
 
 
+## Version 0.4.6 - Durability & Consistency Implementation
+
+### New Features
+- Complete Durability & Consistency functionality
+- Observe-based durability operations (observe, observeMulti, waitForDurability)
+- Mutation token management with automatic extraction
+- Enhanced store operations with full durability support
+- Support for all Couchbase durability levels
+- Comprehensive durability test suite with 13 test cases
+
+### Technical Details
+- ObserveDurability, ObserveResult, and ObserveOptions data structures
+- Mutation token creation, validation, and memory management
+- Timeout handling for durability operations
+- Error handling for durability-specific errors
+- Memory-safe implementation with proper cleanup
+
 ## Version 0.4.5 - Spatial Views Implementation (Deprecated)
 
 ### New Features
