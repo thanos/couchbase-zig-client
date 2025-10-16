@@ -5,8 +5,9 @@ const c = @import("c.zig");
 const Client = @import("client.zig").Client;
 const operations = @import("operations.zig");
 
-// Global counter for transaction IDs to avoid collisions
-var transaction_counter: u64 = 0;
+// Global counter for transaction IDs to avoid collisions.
+// Thread-safe: All accesses must use atomic operations.
+var transaction_counter = std.atomic.Atomic(u64).init(0);
 
 /// Document representation
 pub const Document = struct {
