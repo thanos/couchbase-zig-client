@@ -4,6 +4,12 @@ const types = @import("types.zig");
 const operations = @import("operations.zig");
 const Client = @import("client.zig").Client;
 
+/// Result of executing a transaction operation
+const OperationResult = struct {
+    cas: u64,
+    value: ?[]const u8,
+};
+
 pub const TransactionContext = types.TransactionContext;
 pub const TransactionResult = types.TransactionResult;
 pub const TransactionConfig = types.TransactionConfig;
@@ -254,8 +260,8 @@ pub fn commitTransaction(ctx: *TransactionContext, config: TransactionConfig) !T
     var last_error: ?Error = null;
     
     // Execute all operations
-    for (ctx.operations.items, 0..) |operation, i| {
-        const result = executeOperation(ctx.client, &operation) catch |err| {
+    for (ctx.operations.items, 0..) |*operation, i| {
+        const result = executeOperation(ctx.client, operation) catch |err| {
             last_error = err;
             
             // If auto_rollback is enabled, rollback completed operations
@@ -267,11 +273,15 @@ pub fn commitTransaction(ctx: *TransactionContext, config: TransactionConfig) !T
             break;
         };
         
+        // Store result data for potential rollback
+        operation.result_cas = result.cas;
+        operation.result_value = result.value;
+        
         operations_executed += 1;
         
         // Store rollback operation if needed
         if (needsRollback(operation.operation_type)) {
-            try addRollbackOperation(ctx, &operation, result);
+            try addRollbackOperation(ctx, operation, result);
         }
     }
     
@@ -318,12 +328,13 @@ pub fn rollbackTransaction(ctx: *TransactionContext) !TransactionResult {
     };
 }
 
-/// Execute a single operation
-fn executeOperation(client: *Client, operation: *const TransactionOperation) !void {
+/// Execute a single operation and return result data
+fn executeOperation(client: *Client, operation: *TransactionOperation) !OperationResult {
     switch (operation.operation_type) {
         .get => {
             const result = try operations.get(client, operation.key);
             defer result.deinit();
+            return .{ .cas = result.cas, .value = try client.allocator.dupe(u8, result.value) };
         },
         .insert => {
             const store_options = operation.options orelse TransactionOperationOptions{};
@@ -334,7 +345,7 @@ fn executeOperation(client: *Client, operation: *const TransactionOperation) !vo
                 .durability = store_options.durability,
             };
             const result = try operations.store(client, operation.key, operation.value.?, .insert, options);
-            _ = result;
+            return .{ .cas = result.cas, .value = null };
         },
         .upsert => {
             const store_options = operation.options orelse TransactionOperationOptions{};
@@ -345,7 +356,7 @@ fn executeOperation(client: *Client, operation: *const TransactionOperation) !vo
                 .durability = store_options.durability,
             };
             const result = try operations.store(client, operation.key, operation.value.?, .upsert, options);
-            _ = result;
+            return .{ .cas = result.cas, .value = null };
         },
         .replace => {
             const store_options = operation.options orelse TransactionOperationOptions{};
@@ -356,7 +367,7 @@ fn executeOperation(client: *Client, operation: *const TransactionOperation) !vo
                 .durability = store_options.durability,
             };
             const result = try operations.store(client, operation.key, operation.value.?, .replace, options);
-            _ = result;
+            return .{ .cas = result.cas, .value = null };
         },
         .remove => {
             const remove_options = operation.options orelse TransactionOperationOptions{};
@@ -365,7 +376,7 @@ fn executeOperation(client: *Client, operation: *const TransactionOperation) !vo
                 .durability = remove_options.durability,
             };
             const result = try operations.remove(client, operation.key, options);
-            _ = result;
+            return .{ .cas = result.cas, .value = null };
         },
         .increment => {
             const counter_options = operation.options orelse TransactionOperationOptions{};
@@ -376,7 +387,7 @@ fn executeOperation(client: *Client, operation: *const TransactionOperation) !vo
                 .durability = counter_options.durability,
             };
             const result = try operations.counter(client, operation.key, delta, options);
-            _ = result;
+            return .{ .cas = result.cas, .value = try std.fmt.allocPrint(client.allocator, "{}", .{result.value}) };
         },
         .decrement => {
             const counter_options = operation.options orelse TransactionOperationOptions{};
@@ -387,22 +398,23 @@ fn executeOperation(client: *Client, operation: *const TransactionOperation) !vo
                 .durability = counter_options.durability,
             };
             const result = try operations.counter(client, operation.key, -delta, options);
-            _ = result;
+            return .{ .cas = result.cas, .value = try std.fmt.allocPrint(client.allocator, "{}", .{result.value}) };
         },
         .touch => {
             const touch_options = operation.options orelse TransactionOperationOptions{};
             const result = try operations.touch(client, operation.key, touch_options.expiry);
-            _ = result;
+            return .{ .cas = result.cas, .value = null };
         },
         .unlock => {
-            const result = try operations.unlock(client, operation.key, operation.cas);
-            _ = result;
+            _ = try operations.unlock(client, operation.key, operation.cas);
+            return .{ .cas = 0, .value = null };
         },
         .query => {
             const query_options = operation.options orelse TransactionOperationOptions{};
             const options = query_options.query_options orelse operations.QueryOptions{};
             const result = try operations.query(client, client.allocator, operation.query_statement.?, options);
             defer result.deinit();
+            return .{ .cas = 0, .value = null };
         },
     }
 }
@@ -416,26 +428,58 @@ fn needsRollback(operation_type: TransactionOperationType) bool {
 }
 
 /// Add a rollback operation
-fn addRollbackOperation(ctx: *TransactionContext, operation: *const TransactionOperation, result: anytype) !void {
-    // For now, we'll implement a simple rollback strategy
-    // In a real implementation, this would be more sophisticated
-    _ = result;
-    _ = operation;
-    _ = ctx;
+fn addRollbackOperation(ctx: *TransactionContext, operation: *const TransactionOperation, result: OperationResult) !void {
+    // Create rollback operation based on the original operation type
+    const rollback_op = TransactionOperation{
+        .operation_type = getRollbackOperationType(operation.operation_type),
+        .key = try ctx.allocator.dupe(u8, operation.key),
+        .value = result.value,
+        .cas = result.cas,
+        .options = operation.options,
+        .query_statement = operation.query_statement,
+        .allocator = ctx.allocator,
+        .result_cas = operation.cas, // Store original CAS for rollback
+        .result_value = operation.value,
+    };
+    
+    try ctx.rollback_operations.append(rollback_op);
+}
+
+/// Get the rollback operation type for a given operation
+fn getRollbackOperationType(operation_type: TransactionOperationType) TransactionOperationType {
+    return switch (operation_type) {
+        .insert => .remove, // Insert -> Remove
+        .upsert => .remove, // Upsert -> Remove (if it was a create)
+        .replace => .replace, // Replace -> Replace with original value
+        .remove => .insert, // Remove -> Insert with original value
+        .increment => .decrement, // Increment -> Decrement
+        .decrement => .increment, // Decrement -> Increment
+        .touch => .touch, // Touch -> Touch with original expiry
+        .unlock => .get, // Unlock -> Get (to re-lock)
+        .get, .query => .get, // Read operations don't need rollback
+    };
 }
 
 /// Rollback operations
 fn rollbackOperations(ctx: *TransactionContext, count: u32) !u32 {
     var rolled_back: u32 = 0;
     
-    // Simple rollback implementation
-    // In a real implementation, this would execute reverse operations
-    for (0..count) |i| {
-        if (i < ctx.rollback_operations.items.len) {
-            // Execute rollback operation
-            _ = try executeOperation(ctx.client, &ctx.rollback_operations.items[i]);
-            rolled_back += 1;
-        }
+    // Execute rollback operations in reverse order
+    const start_idx = if (ctx.rollback_operations.items.len > count) 
+        ctx.rollback_operations.items.len - count 
+    else 
+        0;
+    
+    var i = ctx.rollback_operations.items.len;
+    while (i > start_idx) {
+        i -= 1;
+        const rollback_op = &ctx.rollback_operations.items[i];
+        
+        // Execute rollback operation
+        _ = executeOperation(ctx.client, rollback_op) catch {
+            // Log rollback failure but continue with other rollbacks
+        };
+        rolled_back += 1;
     }
     
     return rolled_back;

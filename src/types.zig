@@ -5,6 +5,9 @@ const c = @import("c.zig");
 const Client = @import("client.zig").Client;
 const operations = @import("operations.zig");
 
+// Global counter for transaction IDs to avoid collisions
+var transaction_counter: u64 = 0;
+
 /// Document representation
 pub const Document = struct {
     id: []const u8,
@@ -110,14 +113,20 @@ pub const TransactionOperation = struct {
     options: ?TransactionOperationOptions = null,
     query_statement: ?[]const u8 = null,
     allocator: std.mem.Allocator,
+    // Store result data for rollback
+    result_cas: u64 = 0,
+    result_value: ?[]const u8 = null,
     
-    pub fn deinit(self: *TransactionOperation) void {
+    pub fn deinit(self: *const TransactionOperation) void {
         self.allocator.free(self.key);
         if (self.value) |val| {
             self.allocator.free(val);
         }
         if (self.query_statement) |stmt| {
             self.allocator.free(stmt);
+        }
+        if (self.result_value) |val| {
+            self.allocator.free(val);
         }
     }
 };
@@ -157,8 +166,10 @@ pub const TransactionContext = struct {
     
     /// Create a new transaction context
     pub fn create(client: *Client, allocator: std.mem.Allocator) !TransactionContext {
+        // Use atomic increment to avoid ID collisions
+        const id = @atomicRmw(u64, &transaction_counter, .Add, 1, .monotonic);
         return TransactionContext{
-            .id = @as(u64, @intCast(std.time.timestamp())),
+            .id = id,
             .state = .active,
             .operations = std.ArrayList(TransactionOperation).init(allocator),
             .rollback_operations = std.ArrayList(TransactionOperation).init(allocator),
