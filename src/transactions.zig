@@ -439,7 +439,7 @@ fn addRollbackOperation(ctx: *TransactionContext, operation: *const TransactionO
         .query_statement = operation.query_statement,
         .allocator = ctx.allocator,
         .result_cas = operation.cas, // Store original CAS for rollback
-        .result_value = operation.value,
+        .result_value = if (operation.value) |val| try ctx.allocator.dupe(u8, val) else null,
     };
     
     try ctx.rollback_operations.append(rollback_op);
