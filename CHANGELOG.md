@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2025-10-13
+
+### Added
+- Complete Transaction functionality implementation for ACID compliance
+- Transaction management operations (beginTransaction, commitTransaction, rollbackTransaction)
+- Transaction-aware KV operations (addGetOperation, addInsertOperation, addUpsertOperation, addReplaceOperation, addRemoveOperation)
+- Transaction-aware counter operations (addIncrementOperation, addDecrementOperation)
+- Transaction-aware advanced operations (addTouchOperation, addUnlockOperation, addQueryOperation)
+- TransactionContext and TransactionResult data structures
+- TransactionConfig for comprehensive transaction configuration
+- Transaction state management (active, committed, rolled_back, failed)
+- Automatic rollback on operation failure
+- Comprehensive transaction error handling
+- Transaction test suite with 11 test cases
+
+### Changed
+- Enhanced error handling with transaction-specific error types
+- Updated memory management for transaction structures
+- Improved error propagation and rollback logic
+
+### Fixed
+- Fixed deinit method signatures to accept const pointers
+- Resolved compilation issues with transaction operations
+- Fixed function calls to use correct operation names
+
 ## [0.4.6] - 2025-10-13
 
 ### Added

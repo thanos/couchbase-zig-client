@@ -4,6 +4,7 @@ const Error = @import("error.zig").Error;
 const fromStatusCode = @import("error.zig").fromStatusCode;
 const types = @import("types.zig");
 const operations = @import("operations.zig");
+const transactions = @import("transactions.zig");
 
 /// Couchbase client
 pub const Client = struct {
@@ -439,5 +440,70 @@ pub const Client = struct {
     pub fn isQueryCancelled(self: *const Client, result: *const operations.QueryResult) bool {
         _ = self; // Client not used in current implementation
         return result.isCancelled();
+    }
+
+    // Transaction methods
+    pub fn beginTransaction(self: *Client, allocator: std.mem.Allocator) Error!types.TransactionContext {
+        return transactions.beginTransaction(self, allocator);
+    }
+
+    pub fn addGetOperation(self: *Client, ctx: *types.TransactionContext, key: []const u8, options: ?types.TransactionOperationOptions) Error!void {
+        _ = self;
+        return transactions.addGetOperation(ctx, key, options);
+    }
+
+    pub fn addInsertOperation(self: *Client, ctx: *types.TransactionContext, key: []const u8, value: []const u8, options: ?types.TransactionOperationOptions) Error!void {
+        _ = self;
+        return transactions.addInsertOperation(ctx, key, value, options);
+    }
+
+    pub fn addUpsertOperation(self: *Client, ctx: *types.TransactionContext, key: []const u8, value: []const u8, options: ?types.TransactionOperationOptions) Error!void {
+        _ = self;
+        return transactions.addUpsertOperation(ctx, key, value, options);
+    }
+
+    pub fn addReplaceOperation(self: *Client, ctx: *types.TransactionContext, key: []const u8, value: []const u8, options: ?types.TransactionOperationOptions) Error!void {
+        _ = self;
+        return transactions.addReplaceOperation(ctx, key, value, options);
+    }
+
+    pub fn addRemoveOperation(self: *Client, ctx: *types.TransactionContext, key: []const u8, options: ?types.TransactionOperationOptions) Error!void {
+        _ = self;
+        return transactions.addRemoveOperation(ctx, key, options);
+    }
+
+    pub fn addIncrementOperation(self: *Client, ctx: *types.TransactionContext, key: []const u8, delta: i64, options: ?types.TransactionOperationOptions) Error!void {
+        _ = self;
+        return transactions.addIncrementOperation(ctx, key, delta, options);
+    }
+
+    pub fn addDecrementOperation(self: *Client, ctx: *types.TransactionContext, key: []const u8, delta: i64, options: ?types.TransactionOperationOptions) Error!void {
+        _ = self;
+        return transactions.addDecrementOperation(ctx, key, delta, options);
+    }
+
+    pub fn addTouchOperation(self: *Client, ctx: *types.TransactionContext, key: []const u8, expiry: u32, options: ?types.TransactionOperationOptions) Error!void {
+        _ = self;
+        return transactions.addTouchOperation(ctx, key, expiry, options);
+    }
+
+    pub fn addUnlockOperation(self: *Client, ctx: *types.TransactionContext, key: []const u8, cas: u64, options: ?types.TransactionOperationOptions) Error!void {
+        _ = self;
+        return transactions.addUnlockOperation(ctx, key, cas, options);
+    }
+
+    pub fn addQueryOperation(self: *Client, ctx: *types.TransactionContext, statement: []const u8, options: ?types.TransactionOperationOptions) Error!void {
+        _ = self;
+        return transactions.addQueryOperation(ctx, statement, options);
+    }
+
+    pub fn commitTransaction(self: *Client, ctx: *types.TransactionContext, config: types.TransactionConfig) Error!types.TransactionResult {
+        _ = self;
+        return transactions.commitTransaction(ctx, config);
+    }
+
+    pub fn rollbackTransaction(self: *Client, ctx: *types.TransactionContext) Error!types.TransactionResult {
+        _ = self;
+        return transactions.rollbackTransaction(ctx);
     }
 };

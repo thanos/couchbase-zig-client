@@ -30,7 +30,7 @@ pub const GetAndLockResult = struct {
     lock_time: u32,
     allocator: std.mem.Allocator,
 
-    pub fn deinit(self: *GetAndLockResult) void {
+    pub fn deinit(self: *const GetAndLockResult) void {
         self.allocator.free(self.value);
     }
 };
@@ -167,7 +167,7 @@ pub const QueryResult = struct {
     allocator: std.mem.Allocator,
     handle: ?*types.QueryHandle = null,
     
-    pub fn deinit(self: *QueryResult) void {
+    pub fn deinit(self: *const QueryResult) void {
         for (self.rows) |row| {
             self.allocator.free(row);
         }

@@ -7,6 +7,7 @@ pub const StatusCode = @import("error.zig").StatusCode;
 pub const types = @import("types.zig");
 pub const operations = @import("operations.zig");
 pub const views = @import("views.zig");
+pub const transactions = @import("transactions.zig");
 
 // Re-export common types
 pub const Document = types.Document;
@@ -23,6 +24,15 @@ pub const ObserveDurability = types.ObserveDurability;
 pub const MutationToken = types.MutationToken;
 pub const ObserveResult = types.ObserveResult;
 pub const ObserveOptions = types.ObserveOptions;
+
+// Transaction types
+pub const TransactionContext = types.TransactionContext;
+pub const TransactionResult = types.TransactionResult;
+pub const TransactionConfig = types.TransactionConfig;
+pub const TransactionOperation = types.TransactionOperation;
+pub const TransactionOperationType = types.TransactionOperationType;
+pub const TransactionOperationOptions = types.TransactionOperationOptions;
+pub const TransactionState = types.TransactionState;
 
     // Advanced query types
     pub const QueryProfile = types.QueryProfile;
