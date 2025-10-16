@@ -1,6 +1,10 @@
 const std = @import("std");
 const c = @import("c.zig");
 
+// Forward declaration to avoid circular dependency
+const Client = @import("client.zig").Client;
+const operations = @import("operations.zig");
+
 /// Document representation
 pub const Document = struct {
     id: []const u8,
@@ -73,6 +77,119 @@ pub const ObserveOptions = struct {
     timeout_ms: u32 = 5000,
     persist_to_master: bool = true,
     replicate_to_count: u32 = 0,
+};
+
+/// Transaction state
+pub const TransactionState = enum {
+    active,
+    committed,
+    rolled_back,
+    failed,
+};
+
+/// Transaction operation type
+pub const TransactionOperationType = enum {
+    get,
+    insert,
+    upsert,
+    replace,
+    remove,
+    increment,
+    decrement,
+    touch,
+    unlock,
+    query,
+};
+
+/// Transaction operation
+pub const TransactionOperation = struct {
+    operation_type: TransactionOperationType,
+    key: []const u8,
+    value: ?[]const u8 = null,
+    cas: u64 = 0,
+    options: ?TransactionOperationOptions = null,
+    query_statement: ?[]const u8 = null,
+    allocator: std.mem.Allocator,
+    
+    pub fn deinit(self: *TransactionOperation) void {
+        self.allocator.free(self.key);
+        if (self.value) |val| {
+            self.allocator.free(val);
+        }
+        if (self.query_statement) |stmt| {
+            self.allocator.free(stmt);
+        }
+    }
+};
+
+/// Transaction operation options
+pub const TransactionOperationOptions = struct {
+    cas: u64 = 0,
+    expiry: u32 = 0,
+    flags: u32 = 0,
+    durability: Durability = .{},
+    initial: u64 = 0, // for counter operations
+    lock_time: u32 = 0, // for get and lock
+    query_options: ?operations.QueryOptions = null,
+};
+
+/// Transaction context
+pub const TransactionContext = struct {
+    id: u64,
+    state: TransactionState,
+    operations: std.ArrayList(TransactionOperation),
+    rollback_operations: std.ArrayList(TransactionOperation),
+    allocator: std.mem.Allocator,
+    client: *Client,
+    
+    pub fn deinit(self: *TransactionContext) void {
+        // Clean up all operations
+        for (self.operations.items) |*op| {
+            op.deinit();
+        }
+        self.operations.deinit();
+        
+        for (self.rollback_operations.items) |*op| {
+            op.deinit();
+        }
+        self.rollback_operations.deinit();
+    }
+    
+    /// Create a new transaction context
+    pub fn create(client: *Client, allocator: std.mem.Allocator) !TransactionContext {
+        return TransactionContext{
+            .id = @as(u64, @intCast(std.time.timestamp())),
+            .state = .active,
+            .operations = std.ArrayList(TransactionOperation).init(allocator),
+            .rollback_operations = std.ArrayList(TransactionOperation).init(allocator),
+            .allocator = allocator,
+            .client = client,
+        };
+    }
+};
+
+/// Transaction result
+pub const TransactionResult = struct {
+    success: bool,
+    operations_executed: u32,
+    operations_rolled_back: u32,
+    error_message: ?[]const u8 = null,
+    allocator: std.mem.Allocator,
+    
+    pub fn deinit(self: *const TransactionResult) void {
+        if (self.error_message) |msg| {
+            self.allocator.free(msg);
+        }
+    }
+};
+
+/// Transaction configuration
+pub const TransactionConfig = struct {
+    timeout_ms: u32 = 30000,
+    retry_attempts: u32 = 3,
+    retry_delay_ms: u32 = 100,
+    durability: Durability = .{},
+    auto_rollback: bool = true,
 };
 
 /// Store operation type

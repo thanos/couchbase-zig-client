@@ -10,6 +10,25 @@ Zig wrapper for the libcouchbase C library.
 
 
 
+## Version 0.5.0 - Transaction Functionality Implementation
+
+### New Features
+- Complete Transaction functionality for ACID compliance
+- Transaction management operations (begin, commit, rollback)
+- Transaction-aware KV operations (get, insert, upsert, replace, remove)
+- Transaction-aware counter operations (increment, decrement)
+- Transaction-aware advanced operations (touch, unlock, query)
+- Comprehensive transaction configuration and error handling
+- Automatic rollback on operation failure
+- Transaction test suite with 11 test cases
+
+### Technical Details
+- TransactionContext and TransactionResult data structures
+- TransactionConfig for comprehensive configuration
+- Transaction state management (active, committed, rolled_back, failed)
+- Memory-safe implementation with proper cleanup
+- Comprehensive error handling and rollback logic
+
 ## Version 0.4.6 - Durability & Consistency Implementation
 
 ### New Features

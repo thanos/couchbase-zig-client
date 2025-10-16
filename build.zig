@@ -269,6 +269,17 @@ pub fn build(b: *std.Build) void {
     const run_spatial_view_tests = b.addRunArtifact(spatial_view_tests);
     const run_durability_tests = b.addRunArtifact(durability_tests);
 
+    const transaction_tests = b.addTest(.{
+        .root_source_file = b.path("tests/transaction_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    transaction_tests.root_module.addImport("couchbase", couchbase_module);
+    transaction_tests.linkSystemLibrary("couchbase");
+    transaction_tests.linkLibC();
+
+    const run_transaction_tests = b.addRunArtifact(transaction_tests);
+
     const test_step = b.step("test", "Run all tests");
     test_step.dependOn(&run_lib_unit_tests.step);
     test_step.dependOn(&run_unit_tests.step);
@@ -334,6 +345,9 @@ pub fn build(b: *std.Build) void {
     const durability_test_step = b.step("test-durability", "Run durability and consistency tests");
     durability_test_step.dependOn(&run_durability_tests.step);
 
+    const transaction_test_step = b.step("test-transaction", "Run transaction tests");
+    transaction_test_step.dependOn(&run_transaction_tests.step);
+
     const all_tests_step = b.step("test-all", "Run all test suites");
     all_tests_step.dependOn(&run_lib_unit_tests.step);
     all_tests_step.dependOn(&run_unit_tests.step);
@@ -355,4 +369,5 @@ pub fn build(b: *std.Build) void {
     all_tests_step.dependOn(&run_enhanced_batch_tests.step);
     all_tests_step.dependOn(&run_spatial_view_tests.step);
     all_tests_step.dependOn(&run_durability_tests.step);
+    all_tests_step.dependOn(&run_transaction_tests.step);
 }

@@ -51,6 +51,12 @@ pub const Error = error{
     EncodingError,
     DecodingError,
     InvalidArgument,
+    /// Transaction errors
+    TransactionNotActive,
+    TransactionFailed,
+    TransactionTimeout,
+    TransactionConflict,
+    TransactionRollbackFailed,
     /// Other
     Unknown,
 };
