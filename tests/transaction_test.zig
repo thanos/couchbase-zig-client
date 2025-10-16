@@ -178,7 +178,9 @@ test "transaction - query operations" {
             .read_only = true,
         },
     };
-    try client.addQueryOperation(&ctx, "SELECT * FROM `" ++ TEST_BUCKET ++ "` LIMIT 1", query_options);
+    const query_str = try std.fmt.allocPrint(allocator, "SELECT * FROM `{s}` LIMIT 1", .{TEST_BUCKET});
+    defer allocator.free(query_str);
+    try client.addQueryOperation(&ctx, query_str, query_options);
 
     // Commit transaction
     const config = TransactionConfig{};
