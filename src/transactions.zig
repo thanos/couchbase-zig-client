@@ -476,8 +476,10 @@ fn rollbackOperations(ctx: *TransactionContext, count: u32) !u32 {
         const rollback_op = &ctx.rollback_operations.items[i];
         
         // Execute rollback operation
-        _ = executeOperation(ctx.client, rollback_op) catch {
+        _ = executeOperation(ctx.client, rollback_op) catch |err| {
             // Log rollback failure but continue with other rollbacks
+            std.log.err("Rollback operation failed: {s} on key '{s}' with error: {}", 
+                @tagName(rollback_op.operation_type), rollback_op.key, err);
         };
         rolled_back += 1;
     }
