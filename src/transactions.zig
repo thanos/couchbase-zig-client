@@ -433,7 +433,7 @@ fn addRollbackOperation(ctx: *TransactionContext, operation: *const TransactionO
     const rollback_op = TransactionOperation{
         .operation_type = getRollbackOperationType(operation.operation_type),
         .key = try ctx.allocator.dupe(u8, operation.key),
-        .value = result.value,
+        .value = if (result.value) |v| try ctx.allocator.dupe(u8, v) else null,
         .cas = result.cas,
         .options = operation.options,
         .query_statement = operation.query_statement,
