@@ -10,6 +10,42 @@ const OperationResult = struct {
     value: ?[]const u8,
 };
 
+/// Transaction Rollback Behavior Documentation
+/// 
+/// This module implements ACID transactions with automatic rollback capabilities.
+/// The rollback behavior varies by operation type:
+/// 
+/// **CREATE Operations (insert):**
+/// - Rollback: Remove the created document
+/// - Safe: No data loss risk
+/// 
+/// **UPDATE Operations (replace):**
+/// - Rollback: Restore original document value
+/// - Safe: Original value captured before modification
+/// 
+/// **UPSERT Operations:**
+/// - Rollback behavior depends on whether document existed before upsert:
+///   - If document didn't exist: Rollback removes the document (safe)
+///   - If document existed: Rollback restores original value (safe)
+/// - **Limitation**: Requires reading original document state before modification
+/// - **Risk**: If original read fails, rollback may not be possible
+/// 
+/// **DELETE Operations (remove):**
+/// - Rollback: Re-insert document with original value
+/// - Safe: Original value captured before deletion
+/// 
+/// **COUNTER Operations (increment/decrement):**
+/// - Rollback: Apply opposite operation with same delta
+/// - Safe: No data loss risk
+/// 
+/// **READ Operations (get, query):**
+/// - No rollback needed (no data modification)
+/// 
+/// **Concurrent Modification Risks:**
+/// - If another process modifies a document between transaction execution and rollback,
+///   rollback operations may fail due to CAS conflicts
+/// - This is a fundamental limitation of optimistic concurrency control
+
 pub const TransactionContext = types.TransactionContext;
 pub const TransactionResult = types.TransactionResult;
 pub const TransactionConfig = types.TransactionConfig;
@@ -66,6 +102,15 @@ pub fn addInsertOperation(
 }
 
 /// Add an UPSERT operation to the transaction
+/// 
+/// **Rollback Behavior:**
+/// - If the document didn't exist before upsert: rollback removes the document
+/// - If the document existed before upsert: rollback restores the original value
+/// 
+/// **Limitations:**
+/// - Rollback requires reading the original document state before modification
+/// - If the original document read fails, rollback may not be possible
+/// - Concurrent modifications between upsert and rollback may cause conflicts
 pub fn addUpsertOperation(
     ctx: *TransactionContext,
     key: []const u8,
@@ -261,6 +306,14 @@ pub fn commitTransaction(ctx: *TransactionContext, config: TransactionConfig) !T
     
     // Execute all operations
     for (ctx.operations.items, 0..) |*operation, i| {
+        // For upsert operations, capture original document state before modification
+        if (operation.operation_type == .upsert) {
+            captureOriginalDocumentState(ctx.client, operation) catch {
+                // If we can't capture original state, we can't safely rollback
+                // This is a limitation that should be documented
+            };
+        }
+        
         const result = executeOperation(ctx.client, operation) catch |err| {
             last_error = err;
             
@@ -430,7 +483,7 @@ fn needsRollback(operation_type: TransactionOperationType) bool {
 /// Add a rollback operation
 fn addRollbackOperation(ctx: *TransactionContext, operation: *const TransactionOperation, result: OperationResult) !void {
     // Create rollback operation based on the original operation type
-    const rollback_op = TransactionOperation{
+    var rollback_op = TransactionOperation{
         .operation_type = getRollbackOperationType(operation.operation_type),
         .key = try ctx.allocator.dupe(u8, operation.key),
         .value = if (result.value) |v| try ctx.allocator.dupe(u8, v) else null,
@@ -440,16 +493,54 @@ fn addRollbackOperation(ctx: *TransactionContext, operation: *const TransactionO
         .allocator = ctx.allocator,
         .result_cas = operation.cas, // Store original CAS for rollback
         .result_value = if (operation.value) |val| try ctx.allocator.dupe(u8, val) else null,
+        .original_cas = operation.original_cas,
+        .original_value = if (operation.original_value) |val| try ctx.allocator.dupe(u8, val) else null,
+        .was_created = operation.was_created,
     };
     
+    // Special handling for upsert operations
+    if (operation.operation_type == .upsert) {
+        if (operation.was_created) {
+            // If upsert created the document, rollback by removing it
+            rollback_op.operation_type = .remove;
+            rollback_op.value = null;
+        } else {
+            // If upsert updated the document, rollback by restoring original value
+            rollback_op.operation_type = .replace;
+            rollback_op.value = if (operation.original_value) |val| try ctx.allocator.dupe(u8, val) else null;
+            rollback_op.cas = operation.original_cas;
+        }
+    }
+    
     try ctx.rollback_operations.append(rollback_op);
+}
+
+/// Capture the original document state before modification for proper rollback
+fn captureOriginalDocumentState(client: *Client, operation: *TransactionOperation) !void {
+    // Try to get the current document state
+    const get_result = operations.get(client, operation.key) catch |err| switch (err) {
+        Error.DocumentNotFound => {
+            // Document doesn't exist, so upsert will create it
+            operation.was_created = true;
+            operation.original_cas = 0;
+            operation.original_value = null;
+            return;
+        },
+        else => return err,
+    };
+    defer get_result.deinit();
+    
+    // Document exists, so upsert will update it
+    operation.was_created = false;
+    operation.original_cas = get_result.cas;
+    operation.original_value = try client.allocator.dupe(u8, get_result.value);
 }
 
 /// Get the rollback operation type for a given operation
 fn getRollbackOperationType(operation_type: TransactionOperationType) TransactionOperationType {
     return switch (operation_type) {
         .insert => .remove, // Insert -> Remove
-        .upsert => .remove, // Upsert -> Remove (if it was a create)
+        .upsert => .replace, // Upsert -> Replace with original value (handled specially)
         .replace => .replace, // Replace -> Replace with original value
         .remove => .insert, // Remove -> Insert with original value
         .increment => .decrement, // Increment -> Decrement
@@ -478,8 +569,8 @@ fn rollbackOperations(ctx: *TransactionContext, count: u32) !u32 {
         // Execute rollback operation
         _ = executeOperation(ctx.client, rollback_op) catch |err| {
             // Log rollback failure but continue with other rollbacks
-            std.log.err("Rollback operation failed: {s} on key '{s}' with error: {}", 
-                @tagName(rollback_op.operation_type), rollback_op.key, err);
+            std.log.err("Rollback operation failed: {s} on key '{s}' with error: {s}", 
+                .{ @tagName(rollback_op.operation_type), rollback_op.key, @errorName(err) });
         };
         rolled_back += 1;
     }

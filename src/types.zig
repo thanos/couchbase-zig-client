@@ -7,7 +7,7 @@ const operations = @import("operations.zig");
 
 // Global counter for transaction IDs to avoid collisions.
 // Thread-safe: All accesses must use atomic operations.
-var transaction_counter = std.atomic.Atomic(u64).init(0);
+var transaction_counter: u64 = 0;
 
 /// Document representation
 pub const Document = struct {
@@ -117,6 +117,10 @@ pub const TransactionOperation = struct {
     // Store result data for rollback
     result_cas: u64 = 0,
     result_value: ?[]const u8 = null,
+    // Store original document state for proper rollback
+    original_cas: u64 = 0,
+    original_value: ?[]const u8 = null,
+    was_created: bool = false, // true if operation created a new document
     
     pub fn deinit(self: *const TransactionOperation) void {
         self.allocator.free(self.key);
@@ -127,6 +131,9 @@ pub const TransactionOperation = struct {
             self.allocator.free(stmt);
         }
         if (self.result_value) |val| {
+            self.allocator.free(val);
+        }
+        if (self.original_value) |val| {
             self.allocator.free(val);
         }
     }
