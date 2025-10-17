@@ -103,6 +103,11 @@ pub const QueryOptions = struct {
     raw: ?[]const u8 = null,
     allocator: ?std.mem.Allocator = null, // Track allocator for cleanup
     
+    // Track which fields were allocated by this QueryOptions
+    owns_client_context_id: bool = false,
+    owns_query_context: bool = false,
+    owns_raw: bool = false,
+    
     /// Clean up allocated memory
     pub fn deinit(self: *const QueryOptions) void {
         if (self.allocator) |allocator| {
@@ -125,18 +130,21 @@ pub const QueryOptions = struct {
                 mut_named_params.deinit();
             }
             
-            // Clean up strings
-            if (self.client_context_id) |ctx_id| {
-                allocator.free(ctx_id);
+            // Clean up strings only if we own them
+            if (self.owns_client_context_id and self.client_context_id != null) {
+                if (self.client_context_id) |ctx_id| {
+                    allocator.free(ctx_id);
+                }
             }
-            if (self.consistency_tokens) |tokens| {
-                allocator.free(tokens);
+            if (self.owns_query_context and self.query_context != null) {
+                if (self.query_context) |query_ctx| {
+                    allocator.free(query_ctx);
+                }
             }
-            if (self.query_context) |query_ctx| {
-                allocator.free(query_ctx);
-            }
-            if (self.raw) |raw_str| {
-                allocator.free(raw_str);
+            if (self.owns_raw and self.raw != null) {
+                if (self.raw) |raw_str| {
+                    allocator.free(raw_str);
+                }
             }
             
             // Clean up consistency token
@@ -203,6 +211,7 @@ pub const QueryOptions = struct {
         return QueryOptions{
             .client_context_id = try allocator.dupe(u8, context_id),
             .allocator = allocator,
+            .owns_client_context_id = true,
         };
     }
     
@@ -257,6 +266,7 @@ pub const QueryOptions = struct {
         return QueryOptions{
             .query_context = try allocator.dupe(u8, query_context),
             .allocator = allocator,
+            .owns_query_context = true,
         };
     }
     
@@ -279,6 +289,7 @@ pub const QueryOptions = struct {
         return QueryOptions{
             .raw = try allocator.dupe(u8, raw_json),
             .allocator = allocator,
+            .owns_raw = true,
         };
     }
     
@@ -313,6 +324,9 @@ pub const QueryOptions = struct {
             .metrics = if (other.metrics != true) other.metrics else self.metrics,
             .raw = other.raw orelse self.raw,
             .allocator = other.allocator orelse self.allocator, // Use other's allocator if available, otherwise self's
+            .owns_client_context_id = other.owns_client_context_id or self.owns_client_context_id,
+            .owns_query_context = other.owns_query_context or self.owns_query_context,
+            .owns_raw = other.owns_raw or self.owns_raw,
         };
     }
 };
