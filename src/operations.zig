@@ -1630,6 +1630,7 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     
     if (options.scan_cap) |scan_cap| {
         // Validate that scan_cap fits in c_int range
+        // Note: scan_cap can be 0 (no limit) or any positive value
         if (scan_cap > std.math.maxInt(c_int)) {
             return Error.InvalidArgument;
         }
@@ -1657,24 +1658,28 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     
     // Set additional advanced options
     if (options.max_parallelism) |max_parallelism| {
-        // Validate that max_parallelism fits in c_int range and is reasonable
-        if (max_parallelism > std.math.maxInt(c_int) or max_parallelism == 0) {
+        // Validate that max_parallelism fits in c_int range
+        // Note: max_parallelism can be 0 (automatic/default) or any positive value
+        if (max_parallelism > std.math.maxInt(c_int)) {
             return Error.InvalidArgument;
         }
         _ = c.lcb_cmdquery_max_parallelism(cmd, @intCast(max_parallelism));
     }
     
     if (options.pipeline_batch) |pipeline_batch| {
-        // Validate that pipeline_batch fits in c_int range and is reasonable
-        if (pipeline_batch > std.math.maxInt(c_int) or pipeline_batch == 0) {
+        // Validate that pipeline_batch fits in c_int range
+        // Note: pipeline_batch can be 0 (disable batching, not recommended for performance)
+        // Default is 16, but 0 is technically valid
+        if (pipeline_batch > std.math.maxInt(c_int)) {
             return Error.InvalidArgument;
         }
         _ = c.lcb_cmdquery_pipeline_batch(cmd, @intCast(pipeline_batch));
     }
     
     if (options.pipeline_cap) |pipeline_cap| {
-        // Validate that pipeline_cap fits in c_int range and is reasonable
-        if (pipeline_cap > std.math.maxInt(c_int) or pipeline_cap == 0) {
+        // Validate that pipeline_cap fits in c_int range
+        // Note: pipeline_cap can be 0 (no limit) or any positive value
+        if (pipeline_cap > std.math.maxInt(c_int)) {
             return Error.InvalidArgument;
         }
         _ = c.lcb_cmdquery_pipeline_cap(cmd, @intCast(pipeline_cap));

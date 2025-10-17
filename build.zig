@@ -376,6 +376,7 @@ pub fn build(b: *std.Build) void {
     const query_options_memory_test_step = b.step("test-query-options-memory", "Run query options memory management tests");
     query_options_memory_test_step.dependOn(&run_query_options_memory_tests.step);
 
+
     const all_tests_step = b.step("test-all", "Run all test suites");
     all_tests_step.dependOn(&run_lib_unit_tests.step);
     all_tests_step.dependOn(&run_unit_tests.step);
