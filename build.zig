@@ -362,6 +362,20 @@ pub fn build(b: *std.Build) void {
     const advanced_n1ql_test_step = b.step("test-advanced-n1ql", "Run advanced N1QL query tests");
     advanced_n1ql_test_step.dependOn(&run_advanced_n1ql_tests.step);
 
+    // Query options memory management tests
+    const query_options_memory_tests = b.addTest(.{
+        .root_source_file = b.path("tests/query_options_memory_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    query_options_memory_tests.root_module.addImport("couchbase", couchbase_module);
+    query_options_memory_tests.linkSystemLibrary("couchbase");
+    query_options_memory_tests.linkLibC();
+
+    const run_query_options_memory_tests = b.addRunArtifact(query_options_memory_tests);
+    const query_options_memory_test_step = b.step("test-query-options-memory", "Run query options memory management tests");
+    query_options_memory_test_step.dependOn(&run_query_options_memory_tests.step);
+
     const all_tests_step = b.step("test-all", "Run all test suites");
     all_tests_step.dependOn(&run_lib_unit_tests.step);
     all_tests_step.dependOn(&run_unit_tests.step);
@@ -385,4 +399,5 @@ pub fn build(b: *std.Build) void {
     all_tests_step.dependOn(&run_durability_tests.step);
     all_tests_step.dependOn(&run_transaction_tests.step);
     all_tests_step.dependOn(&run_advanced_n1ql_tests.step);
+    all_tests_step.dependOn(&run_query_options_memory_tests.step);
 }

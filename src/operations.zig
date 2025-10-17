@@ -101,6 +101,51 @@ pub const QueryOptions = struct {
     pretty: bool = false,
     metrics: bool = true,
     raw: ?[]const u8 = null,
+    allocator: ?std.mem.Allocator = null, // Track allocator for cleanup
+    
+    /// Clean up allocated memory
+    pub fn deinit(self: *const QueryOptions) void {
+        if (self.allocator) |allocator| {
+            // Clean up parameters array
+            if (self.parameters) |params| {
+                for (params) |param| {
+                    allocator.free(param);
+                }
+                allocator.free(params);
+            }
+            
+            // Clean up named parameters
+            if (self.named_parameters) |named_params| {
+                var iterator = named_params.iterator();
+                while (iterator.next()) |entry| {
+                    allocator.free(entry.key_ptr.*);
+                    allocator.free(entry.value_ptr.*);
+                }
+                var mut_named_params = named_params;
+                mut_named_params.deinit();
+            }
+            
+            // Clean up strings
+            if (self.client_context_id) |ctx_id| {
+                allocator.free(ctx_id);
+            }
+            if (self.consistency_tokens) |tokens| {
+                allocator.free(tokens);
+            }
+            if (self.query_context) |query_ctx| {
+                allocator.free(query_ctx);
+            }
+            if (self.raw) |raw_str| {
+                allocator.free(raw_str);
+            }
+            
+            // Clean up consistency token
+            if (self.consistency_token) |token| {
+                var mut_token = token;
+                mut_token.deinit();
+            }
+        }
+    }
     
     /// Create query options with positional parameters
     pub fn withPositionalParams(allocator: std.mem.Allocator, params: []const []const u8) !QueryOptions {
@@ -110,6 +155,7 @@ pub const QueryOptions = struct {
         }
         return QueryOptions{
             .parameters = param_copy,
+            .allocator = allocator,
         };
     }
     
@@ -127,6 +173,7 @@ pub const QueryOptions = struct {
         }
         return QueryOptions{
             .named_parameters = named_params,
+            .allocator = allocator,
         };
     }
     
@@ -144,10 +191,18 @@ pub const QueryOptions = struct {
         };
     }
     
-    /// Create query options with client context ID
+    /// Create query options with client context ID (no allocation - caller owns memory)
     pub fn withContextId(context_id: []const u8) QueryOptions {
         return QueryOptions{
             .client_context_id = context_id,
+        };
+    }
+    
+    /// Create query options with client context ID (allocates memory)
+    pub fn withContextIdOwned(allocator: std.mem.Allocator, context_id: []const u8) !QueryOptions {
+        return QueryOptions{
+            .client_context_id = try allocator.dupe(u8, context_id),
+            .allocator = allocator,
         };
     }
     
@@ -174,9 +229,10 @@ pub const QueryOptions = struct {
     }
     
     /// Create query options with consistency token
-    pub fn withConsistencyToken(_: std.mem.Allocator, token: types.ConsistencyToken) QueryOptions {
+    pub fn withConsistencyToken(allocator: std.mem.Allocator, token: types.ConsistencyToken) QueryOptions {
         return QueryOptions{
             .consistency_token = token,
+            .allocator = allocator,
         };
     }
     
@@ -189,10 +245,18 @@ pub const QueryOptions = struct {
         };
     }
     
-    /// Create query options with query context
+    /// Create query options with query context (no allocation - caller owns memory)
     pub fn withQueryContext(query_context: []const u8) QueryOptions {
         return QueryOptions{
             .query_context = query_context,
+        };
+    }
+    
+    /// Create query options with query context (allocates memory)
+    pub fn withQueryContextOwned(allocator: std.mem.Allocator, query_context: []const u8) !QueryOptions {
+        return QueryOptions{
+            .query_context = try allocator.dupe(u8, query_context),
+            .allocator = allocator,
         };
     }
     
@@ -210,10 +274,18 @@ pub const QueryOptions = struct {
         };
     }
     
-    /// Create query options with raw JSON
+    /// Create query options with raw JSON (allocates memory)
     pub fn withRaw(allocator: std.mem.Allocator, raw_json: []const u8) !QueryOptions {
         return QueryOptions{
             .raw = try allocator.dupe(u8, raw_json),
+            .allocator = allocator,
+        };
+    }
+    
+    /// Create query options with raw JSON (no allocation - caller owns memory)
+    pub fn withRawOwned(raw_json: []const u8) QueryOptions {
+        return QueryOptions{
+            .raw = raw_json,
         };
     }
     
@@ -240,6 +312,7 @@ pub const QueryOptions = struct {
             .pretty = other.pretty or self.pretty,
             .metrics = if (other.metrics != true) other.metrics else self.metrics,
             .raw = other.raw orelse self.raw,
+            .allocator = other.allocator orelse self.allocator, // Use other's allocator if available, otherwise self's
         };
     }
 };
