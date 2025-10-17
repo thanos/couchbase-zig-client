@@ -1615,8 +1615,8 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     }
     
     if (options.scan_cap) |scan_cap| {
-        // Validate that scan_cap fits in c_int range and is reasonable
-        if (scan_cap > std.math.maxInt(c_int) or scan_cap == 0) {
+        // Validate that scan_cap fits in c_int range
+        if (scan_cap > std.math.maxInt(c_int)) {
             return Error.InvalidArgument;
         }
         _ = c.lcb_cmdquery_scan_cap(cmd, @intCast(scan_cap));
