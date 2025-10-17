@@ -174,7 +174,7 @@ pub const QueryOptions = struct {
     }
     
     /// Create query options with consistency token
-    pub fn withConsistencyToken(_: std.mem.Allocator, token: types.ConsistencyToken) !QueryOptions {
+    pub fn withConsistencyToken(_: std.mem.Allocator, token: types.ConsistencyToken) QueryOptions {
         return QueryOptions{
             .consistency_token = token,
         };
