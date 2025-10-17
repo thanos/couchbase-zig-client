@@ -1591,7 +1591,7 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     // Create query handle for cancellation after basic setup
     const handle = try allocator.create(types.QueryHandle);
     handle.* = types.QueryHandle{
-        .id = @as(u64, @intCast(std.time.timestamp())),
+        .id = @as(u64, @intCast(@max(0, std.time.timestamp()))),
         .cancelled = false,
         .allocator = allocator,
     };
@@ -1615,6 +1615,10 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     }
     
     if (options.scan_cap) |scan_cap| {
+        // Validate that scan_cap fits in c_int range and is reasonable
+        if (scan_cap > std.math.maxInt(c_int) or scan_cap == 0) {
+            return Error.InvalidArgument;
+        }
         _ = c.lcb_cmdquery_scan_cap(cmd, @intCast(scan_cap));
     }
     
@@ -1639,14 +1643,26 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     
     // Set additional advanced options
     if (options.max_parallelism) |max_parallelism| {
+        // Validate that max_parallelism fits in c_int range and is reasonable
+        if (max_parallelism > std.math.maxInt(c_int) or max_parallelism == 0) {
+            return Error.InvalidArgument;
+        }
         _ = c.lcb_cmdquery_max_parallelism(cmd, @intCast(max_parallelism));
     }
     
     if (options.pipeline_batch) |pipeline_batch| {
+        // Validate that pipeline_batch fits in c_int range and is reasonable
+        if (pipeline_batch > std.math.maxInt(c_int) or pipeline_batch == 0) {
+            return Error.InvalidArgument;
+        }
         _ = c.lcb_cmdquery_pipeline_batch(cmd, @intCast(pipeline_batch));
     }
     
     if (options.pipeline_cap) |pipeline_cap| {
+        // Validate that pipeline_cap fits in c_int range and is reasonable
+        if (pipeline_cap > std.math.maxInt(c_int) or pipeline_cap == 0) {
+            return Error.InvalidArgument;
+        }
         _ = c.lcb_cmdquery_pipeline_cap(cmd, @intCast(pipeline_cap));
     }
     
@@ -2730,7 +2746,9 @@ pub fn prepareStatement(client: *Client, statement: []const u8) Error!void {
     }
     
     // Create prepared statement entry
-    const now = @as(u64, @intCast(std.time.timestamp() * 1000)); // Convert to milliseconds
+    const timestamp = std.time.timestamp();
+    const timestamp_ms = @as(u64, @intCast(@max(0, timestamp) * 1000)); // Convert to milliseconds, ensure non-negative
+    const now = timestamp_ms;
     const prepared = types.PreparedStatement{
         .statement = try client.allocator.dupe(u8, statement),
         .prepared_data = try client.allocator.dupe(u8, statement), // In real implementation, this would be the prepared data
