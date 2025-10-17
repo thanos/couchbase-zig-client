@@ -496,6 +496,21 @@ pub const QueryMetadata = struct {
                 self.warnings = warns;
             }
         }
+        
+        // Parse profile information if available
+        if (parsed.value.object.get("profile")) |profile_val| {
+            if (profile_val == .string) {
+                const profile_str = try self.allocator.dupe(u8, profile_val.string);
+                if (std.mem.eql(u8, profile_str, "off")) {
+                    self.profile = .off;
+                } else if (std.mem.eql(u8, profile_str, "phases")) {
+                    self.profile = .phases;
+                } else if (std.mem.eql(u8, profile_str, "timings")) {
+                    self.profile = .timings;
+                }
+                self.allocator.free(profile_str);
+            }
+        }
     }
 };
 

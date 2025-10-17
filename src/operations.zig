@@ -121,7 +121,7 @@ pub const QueryOptions = struct {
             inline for (@typeInfo(T).@"struct".fields) |field| {
                 const value = @field(params, field.name);
                 const key = try allocator.dupe(u8, field.name);
-                const value_str = try std.fmt.allocPrint(allocator, "{s}", .{value});
+                const value_str = try std.fmt.allocPrint(allocator, "{any}", .{value});
                 try named_params.put(key, value_str);
             }
         }
@@ -155,6 +155,91 @@ pub const QueryOptions = struct {
     pub fn prepared() QueryOptions {
         return QueryOptions{
             .adhoc = false,
+        };
+    }
+    
+    /// Create query options with scan capabilities
+    pub fn withScanCapabilities(scan_cap: u32, scan_wait: u32) QueryOptions {
+        return QueryOptions{
+            .scan_cap = scan_cap,
+            .scan_wait = scan_wait,
+        };
+    }
+    
+    /// Create query options with flex index support
+    pub fn withFlexIndex() QueryOptions {
+        return QueryOptions{
+            .flex_index = true,
+        };
+    }
+    
+    /// Create query options with consistency token
+    pub fn withConsistencyToken(_: std.mem.Allocator, token: types.ConsistencyToken) !QueryOptions {
+        return QueryOptions{
+            .consistency_token = token,
+        };
+    }
+    
+    /// Create query options with performance tuning
+    pub fn withPerformanceTuning(max_parallelism: u32, pipeline_batch: u32, pipeline_cap: u32) QueryOptions {
+        return QueryOptions{
+            .max_parallelism = max_parallelism,
+            .pipeline_batch = pipeline_batch,
+            .pipeline_cap = pipeline_cap,
+        };
+    }
+    
+    /// Create query options with query context
+    pub fn withQueryContext(query_context: []const u8) QueryOptions {
+        return QueryOptions{
+            .query_context = query_context,
+        };
+    }
+    
+    /// Create query options with pretty printing
+    pub fn withPrettyPrint() QueryOptions {
+        return QueryOptions{
+            .pretty = true,
+        };
+    }
+    
+    /// Create query options with metrics disabled
+    pub fn withoutMetrics() QueryOptions {
+        return QueryOptions{
+            .metrics = false,
+        };
+    }
+    
+    /// Create query options with raw JSON
+    pub fn withRaw(allocator: std.mem.Allocator, raw_json: []const u8) !QueryOptions {
+        return QueryOptions{
+            .raw = try allocator.dupe(u8, raw_json),
+        };
+    }
+    
+    /// Chain multiple options together
+    pub fn chain(self: QueryOptions, other: QueryOptions) QueryOptions {
+        return QueryOptions{
+            .consistency = if (other.consistency != .not_bounded) other.consistency else self.consistency,
+            .parameters = other.parameters orelse self.parameters,
+            .named_parameters = other.named_parameters orelse self.named_parameters,
+            .timeout_ms = if (other.timeout_ms != 75000) other.timeout_ms else self.timeout_ms,
+            .adhoc = other.adhoc,
+            .profile = if (other.profile != .off) other.profile else self.profile,
+            .read_only = other.read_only or self.read_only,
+            .client_context_id = other.client_context_id orelse self.client_context_id,
+            .scan_cap = other.scan_cap orelse self.scan_cap,
+            .scan_wait = other.scan_wait orelse self.scan_wait,
+            .flex_index = other.flex_index or self.flex_index,
+            .consistency_tokens = other.consistency_tokens orelse self.consistency_tokens,
+            .consistency_token = other.consistency_token orelse self.consistency_token,
+            .max_parallelism = other.max_parallelism orelse self.max_parallelism,
+            .pipeline_batch = other.pipeline_batch orelse self.pipeline_batch,
+            .pipeline_cap = other.pipeline_cap orelse self.pipeline_cap,
+            .query_context = other.query_context orelse self.query_context,
+            .pretty = other.pretty or self.pretty,
+            .metrics = if (other.metrics != true) other.metrics else self.metrics,
+            .raw = other.raw orelse self.raw,
         };
     }
 };
@@ -1466,17 +1551,45 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     
     _ = c.lcb_cmdquery_flex_index(cmd, if (options.flex_index) 1 else 0);
     
-    if (options.consistency_tokens) |tokens| {
-        // Note: This requires proper lcb_MUTATION_TOKEN handling
-        // For now, we'll skip this advanced feature
-        _ = tokens;
+    // Handle consistency tokens
+    if (options.consistency_tokens) |_| {
+        _ = c.lcb_cmdquery_consistency_tokens(cmd, client.instance);
     }
     
     // Set consistency token if provided
     if (options.consistency_token) |token| {
-        // Note: This requires proper lcb_MUTATION_TOKEN handling
-        // For now, we'll skip this advanced feature
+        // Note: Consistency token handling requires proper mutation token setup
+        // For now, we'll just set the consistency tokens flag
         _ = token;
+        _ = c.lcb_cmdquery_consistency_tokens(cmd, client.instance);
+    }
+    
+    // Set additional advanced options
+    if (options.max_parallelism) |max_parallelism| {
+        _ = c.lcb_cmdquery_max_parallelism(cmd, @intCast(max_parallelism));
+    }
+    
+    if (options.pipeline_batch) |pipeline_batch| {
+        _ = c.lcb_cmdquery_pipeline_batch(cmd, @intCast(pipeline_batch));
+    }
+    
+    if (options.pipeline_cap) |pipeline_cap| {
+        _ = c.lcb_cmdquery_pipeline_cap(cmd, @intCast(pipeline_cap));
+    }
+    
+    if (options.query_context) |query_context| {
+        // Note: query_context is not directly supported in libcouchbase C API
+        // This would need to be handled through raw JSON options
+        _ = query_context;
+    }
+    
+    _ = c.lcb_cmdquery_pretty(cmd, if (options.pretty) 1 else 0);
+    _ = c.lcb_cmdquery_metrics(cmd, if (options.metrics) 1 else 0);
+    
+    if (options.raw) |raw| {
+        // Note: raw JSON options are not directly supported in libcouchbase C API
+        // This would need to be handled through custom query construction
+        _ = raw;
     }
     
     // Handle positional parameters

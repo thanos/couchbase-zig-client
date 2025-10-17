@@ -348,6 +348,20 @@ pub fn build(b: *std.Build) void {
     const transaction_test_step = b.step("test-transaction", "Run transaction tests");
     transaction_test_step.dependOn(&run_transaction_tests.step);
 
+    // Advanced N1QL tests
+    const advanced_n1ql_tests = b.addTest(.{
+        .root_source_file = b.path("tests/advanced_n1ql_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    advanced_n1ql_tests.root_module.addImport("couchbase", couchbase_module);
+    advanced_n1ql_tests.linkSystemLibrary("couchbase");
+    advanced_n1ql_tests.linkLibC();
+
+    const run_advanced_n1ql_tests = b.addRunArtifact(advanced_n1ql_tests);
+    const advanced_n1ql_test_step = b.step("test-advanced-n1ql", "Run advanced N1QL query tests");
+    advanced_n1ql_test_step.dependOn(&run_advanced_n1ql_tests.step);
+
     const all_tests_step = b.step("test-all", "Run all test suites");
     all_tests_step.dependOn(&run_lib_unit_tests.step);
     all_tests_step.dependOn(&run_unit_tests.step);
@@ -370,4 +384,5 @@ pub fn build(b: *std.Build) void {
     all_tests_step.dependOn(&run_spatial_view_tests.step);
     all_tests_step.dependOn(&run_durability_tests.step);
     all_tests_step.dependOn(&run_transaction_tests.step);
+    all_tests_step.dependOn(&run_advanced_n1ql_tests.step);
 }

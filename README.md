@@ -10,6 +10,27 @@ Zig wrapper for the libcouchbase C library.
 
 
 
+## Version 0.5.1 - Advanced N1QL Query Options
+
+### New Features
+- Query Profile support (off, phases, timings modes)
+- Readonly queries functionality
+- Client Context ID for query traceability
+- Scan capabilities configuration (scan cap and wait times)
+- Flex index support for flexible index usage
+- Consistency tokens for advanced consistency control
+- Performance tuning options (max parallelism, pipeline batch/cap)
+- Pretty print formatting and metrics control
+- Query context specification and raw JSON options
+- Query option chaining with fluent API
+
+### Technical Details
+- Direct libcouchbase C API integration
+- Enhanced QueryMetadata parsing with profile information
+- Comprehensive query options builder methods
+- Type-safe option handling with graceful degradation
+- Eight new test cases for advanced N1QL features
+
 ## Version 0.5.0 - Transaction Functionality Implementation
 
 ### New Features

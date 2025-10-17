@@ -344,7 +344,7 @@ pub fn commitTransaction(ctx: *TransactionContext, config: TransactionConfig) !T
             .success = false,
             .operations_executed = operations_executed,
             .operations_rolled_back = operations_rolled_back,
-            .error_message = try std.fmt.allocPrint(ctx.allocator, "Transaction failed: {}", .{last_error.?}),
+            .error_message = try std.fmt.allocPrint(ctx.allocator, "Transaction failed: {s}", .{@errorName(last_error.?)}),
             .allocator = ctx.allocator,
         };
     }
