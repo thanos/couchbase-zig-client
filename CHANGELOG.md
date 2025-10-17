@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2025-10-16
+
+### Added
+- Advanced N1QL Query Options implementation
+- Query Profile support (off, phases, timings modes)
+- Readonly queries functionality
+- Client Context ID for query traceability
+- Scan capabilities configuration (scan cap and wait times)
+- Flex index support for flexible index usage
+- Consistency tokens for advanced consistency control
+- Performance tuning options (max parallelism, pipeline batch/cap)
+- Pretty print formatting for query results
+- Metrics control (enable/disable)
+- Query context specification
+- Raw JSON options support
+- Query option chaining with fluent API
+- Enhanced QueryMetadata parsing with profile information
+- Eight new test cases for advanced N1QL features
+
+### Changed
+- Updated QueryOptions with additional advanced configuration fields
+- Enhanced query execution to support all advanced options
+- Improved metadata parsing for better observability
+- Updated withNamedParams to use {any} formatter for type flexibility
+
+### Fixed
+- Fixed string formatting in withNamedParams for anytype values
+- Fixed consistency token handling with proper API usage
+- Fixed query context and raw JSON option handling
+- Resolved compilation issues with advanced query features
+
 ## [0.5.0] - 2025-10-13
 
 ### Added

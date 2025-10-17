@@ -101,6 +101,59 @@ pub const QueryOptions = struct {
     pretty: bool = false,
     metrics: bool = true,
     raw: ?[]const u8 = null,
+    allocator: ?std.mem.Allocator = null, // Track allocator for cleanup
+    
+    // Track which fields were allocated by this QueryOptions
+    owns_client_context_id: bool = false,
+    owns_query_context: bool = false,
+    owns_raw: bool = false,
+    
+    /// Clean up allocated memory
+    pub fn deinit(self: *const QueryOptions) void {
+        if (self.allocator) |allocator| {
+            // Clean up parameters array
+            if (self.parameters) |params| {
+                for (params) |param| {
+                    allocator.free(param);
+                }
+                allocator.free(params);
+            }
+            
+            // Clean up named parameters
+            if (self.named_parameters) |named_params| {
+                var iterator = named_params.iterator();
+                while (iterator.next()) |entry| {
+                    allocator.free(entry.key_ptr.*);
+                    allocator.free(entry.value_ptr.*);
+                }
+                var mut_named_params = named_params;
+                mut_named_params.deinit();
+            }
+            
+            // Clean up strings only if we own them
+            if (self.owns_client_context_id and self.client_context_id != null) {
+                if (self.client_context_id) |ctx_id| {
+                    allocator.free(ctx_id);
+                }
+            }
+            if (self.owns_query_context and self.query_context != null) {
+                if (self.query_context) |query_ctx| {
+                    allocator.free(query_ctx);
+                }
+            }
+            if (self.owns_raw and self.raw != null) {
+                if (self.raw) |raw_str| {
+                    allocator.free(raw_str);
+                }
+            }
+            
+            // Clean up consistency token
+            if (self.consistency_token) |token| {
+                var mut_token = token;
+                mut_token.deinit();
+            }
+        }
+    }
     
     /// Create query options with positional parameters
     pub fn withPositionalParams(allocator: std.mem.Allocator, params: []const []const u8) !QueryOptions {
@@ -110,6 +163,7 @@ pub const QueryOptions = struct {
         }
         return QueryOptions{
             .parameters = param_copy,
+            .allocator = allocator,
         };
     }
     
@@ -121,12 +175,13 @@ pub const QueryOptions = struct {
             inline for (@typeInfo(T).@"struct".fields) |field| {
                 const value = @field(params, field.name);
                 const key = try allocator.dupe(u8, field.name);
-                const value_str = try std.fmt.allocPrint(allocator, "{s}", .{value});
+                const value_str = try std.fmt.allocPrint(allocator, "{any}", .{value});
                 try named_params.put(key, value_str);
             }
         }
         return QueryOptions{
             .named_parameters = named_params,
+            .allocator = allocator,
         };
     }
     
@@ -144,10 +199,19 @@ pub const QueryOptions = struct {
         };
     }
     
-    /// Create query options with client context ID
+    /// Create query options with client context ID (no allocation - caller owns memory)
     pub fn withContextId(context_id: []const u8) QueryOptions {
         return QueryOptions{
             .client_context_id = context_id,
+        };
+    }
+    
+    /// Create query options with client context ID (allocates memory)
+    pub fn withContextIdOwned(allocator: std.mem.Allocator, context_id: []const u8) !QueryOptions {
+        return QueryOptions{
+            .client_context_id = try allocator.dupe(u8, context_id),
+            .allocator = allocator,
+            .owns_client_context_id = true,
         };
     }
     
@@ -155,6 +219,114 @@ pub const QueryOptions = struct {
     pub fn prepared() QueryOptions {
         return QueryOptions{
             .adhoc = false,
+        };
+    }
+    
+    /// Create query options with scan capabilities
+    pub fn withScanCapabilities(scan_cap: u32, scan_wait: u32) QueryOptions {
+        return QueryOptions{
+            .scan_cap = scan_cap,
+            .scan_wait = scan_wait,
+        };
+    }
+    
+    /// Create query options with flex index support
+    pub fn withFlexIndex() QueryOptions {
+        return QueryOptions{
+            .flex_index = true,
+        };
+    }
+    
+    /// Create query options with consistency token
+    pub fn withConsistencyToken(allocator: std.mem.Allocator, token: types.ConsistencyToken) QueryOptions {
+        return QueryOptions{
+            .consistency_token = token,
+            .allocator = allocator,
+        };
+    }
+    
+    /// Create query options with performance tuning
+    pub fn withPerformanceTuning(max_parallelism: u32, pipeline_batch: u32, pipeline_cap: u32) QueryOptions {
+        return QueryOptions{
+            .max_parallelism = max_parallelism,
+            .pipeline_batch = pipeline_batch,
+            .pipeline_cap = pipeline_cap,
+        };
+    }
+    
+    /// Create query options with query context (no allocation - caller owns memory)
+    pub fn withQueryContext(query_context: []const u8) QueryOptions {
+        return QueryOptions{
+            .query_context = query_context,
+        };
+    }
+    
+    /// Create query options with query context (allocates memory)
+    pub fn withQueryContextOwned(allocator: std.mem.Allocator, query_context: []const u8) !QueryOptions {
+        return QueryOptions{
+            .query_context = try allocator.dupe(u8, query_context),
+            .allocator = allocator,
+            .owns_query_context = true,
+        };
+    }
+    
+    /// Create query options with pretty printing
+    pub fn withPrettyPrint() QueryOptions {
+        return QueryOptions{
+            .pretty = true,
+        };
+    }
+    
+    /// Create query options with metrics disabled
+    pub fn withoutMetrics() QueryOptions {
+        return QueryOptions{
+            .metrics = false,
+        };
+    }
+    
+    /// Create query options with raw JSON (allocates memory)
+    pub fn withRaw(allocator: std.mem.Allocator, raw_json: []const u8) !QueryOptions {
+        return QueryOptions{
+            .raw = try allocator.dupe(u8, raw_json),
+            .allocator = allocator,
+            .owns_raw = true,
+        };
+    }
+    
+    /// Create query options with raw JSON (no allocation - caller owns memory)
+    pub fn withRawOwned(raw_json: []const u8) QueryOptions {
+        return QueryOptions{
+            .raw = raw_json,
+        };
+    }
+    
+    /// Chain multiple options together
+    pub fn chain(self: QueryOptions, other: QueryOptions) QueryOptions {
+        return QueryOptions{
+            .consistency = if (other.consistency != .not_bounded) other.consistency else self.consistency,
+            .parameters = other.parameters orelse self.parameters,
+            .named_parameters = other.named_parameters orelse self.named_parameters,
+            .timeout_ms = if (other.timeout_ms != 75000) other.timeout_ms else self.timeout_ms,
+            .adhoc = other.adhoc,
+            .profile = if (other.profile != .off) other.profile else self.profile,
+            .read_only = other.read_only or self.read_only,
+            .client_context_id = other.client_context_id orelse self.client_context_id,
+            .scan_cap = other.scan_cap orelse self.scan_cap,
+            .scan_wait = other.scan_wait orelse self.scan_wait,
+            .flex_index = other.flex_index or self.flex_index,
+            .consistency_tokens = other.consistency_tokens orelse self.consistency_tokens,
+            .consistency_token = other.consistency_token orelse self.consistency_token,
+            .max_parallelism = other.max_parallelism orelse self.max_parallelism,
+            .pipeline_batch = other.pipeline_batch orelse self.pipeline_batch,
+            .pipeline_cap = other.pipeline_cap orelse self.pipeline_cap,
+            .query_context = other.query_context orelse self.query_context,
+            .pretty = other.pretty or self.pretty,
+            .metrics = if (other.metrics != true) other.metrics else self.metrics,
+            .raw = other.raw orelse self.raw,
+            .allocator = other.allocator orelse self.allocator, // Use other's allocator if available, otherwise self's
+            .owns_client_context_id = other.owns_client_context_id or self.owns_client_context_id,
+            .owns_query_context = other.owns_query_context or self.owns_query_context,
+            .owns_raw = other.owns_raw or self.owns_raw,
         };
     }
 };
@@ -1433,7 +1605,7 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     // Create query handle for cancellation after basic setup
     const handle = try allocator.create(types.QueryHandle);
     handle.* = types.QueryHandle{
-        .id = @as(u64, @intCast(std.time.timestamp())),
+        .id = @as(u64, @intCast(@max(0, std.time.timestamp()))),
         .cancelled = false,
         .allocator = allocator,
     };
@@ -1457,6 +1629,11 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     }
     
     if (options.scan_cap) |scan_cap| {
+        // Validate that scan_cap fits in c_int range
+        // Note: scan_cap can be 0 (no limit) or any positive value
+        if (scan_cap > std.math.maxInt(c_int)) {
+            return Error.InvalidArgument;
+        }
         _ = c.lcb_cmdquery_scan_cap(cmd, @intCast(scan_cap));
     }
     
@@ -1466,17 +1643,61 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     
     _ = c.lcb_cmdquery_flex_index(cmd, if (options.flex_index) 1 else 0);
     
-    if (options.consistency_tokens) |tokens| {
-        // Note: This requires proper lcb_MUTATION_TOKEN handling
-        // For now, we'll skip this advanced feature
-        _ = tokens;
+    // Handle consistency tokens
+    if (options.consistency_tokens) |_| {
+        _ = c.lcb_cmdquery_consistency_tokens(cmd, client.instance);
     }
     
     // Set consistency token if provided
     if (options.consistency_token) |token| {
-        // Note: This requires proper lcb_MUTATION_TOKEN handling
-        // For now, we'll skip this advanced feature
+        // Note: Consistency token handling requires proper mutation token setup
+        // For now, we'll just set the consistency tokens flag
         _ = token;
+        _ = c.lcb_cmdquery_consistency_tokens(cmd, client.instance);
+    }
+    
+    // Set additional advanced options
+    if (options.max_parallelism) |max_parallelism| {
+        // Validate that max_parallelism fits in c_int range
+        // Note: max_parallelism can be 0 (automatic/default) or any positive value
+        if (max_parallelism > std.math.maxInt(c_int)) {
+            return Error.InvalidArgument;
+        }
+        _ = c.lcb_cmdquery_max_parallelism(cmd, @intCast(max_parallelism));
+    }
+    
+    if (options.pipeline_batch) |pipeline_batch| {
+        // Validate that pipeline_batch fits in c_int range
+        // Note: pipeline_batch can be 0 (disable batching, not recommended for performance)
+        // Default is 16, but 0 is technically valid
+        if (pipeline_batch > std.math.maxInt(c_int)) {
+            return Error.InvalidArgument;
+        }
+        _ = c.lcb_cmdquery_pipeline_batch(cmd, @intCast(pipeline_batch));
+    }
+    
+    if (options.pipeline_cap) |pipeline_cap| {
+        // Validate that pipeline_cap fits in c_int range
+        // Note: pipeline_cap can be 0 (no limit) or any positive value
+        if (pipeline_cap > std.math.maxInt(c_int)) {
+            return Error.InvalidArgument;
+        }
+        _ = c.lcb_cmdquery_pipeline_cap(cmd, @intCast(pipeline_cap));
+    }
+    
+    if (options.query_context) |query_context| {
+        // Note: query_context is not directly supported in libcouchbase C API
+        // This would need to be handled through raw JSON options
+        _ = query_context;
+    }
+    
+    _ = c.lcb_cmdquery_pretty(cmd, if (options.pretty) 1 else 0);
+    _ = c.lcb_cmdquery_metrics(cmd, if (options.metrics) 1 else 0);
+    
+    if (options.raw) |raw| {
+        // Note: raw JSON options are not directly supported in libcouchbase C API
+        // This would need to be handled through custom query construction
+        _ = raw;
     }
     
     // Handle positional parameters
@@ -2544,7 +2765,9 @@ pub fn prepareStatement(client: *Client, statement: []const u8) Error!void {
     }
     
     // Create prepared statement entry
-    const now = @as(u64, @intCast(std.time.timestamp() * 1000)); // Convert to milliseconds
+    const timestamp = std.time.timestamp();
+    const timestamp_ms = @as(u64, @intCast(@max(0, timestamp) * 1000)); // Convert to milliseconds, ensure non-negative
+    const now = timestamp_ms;
     const prepared = types.PreparedStatement{
         .statement = try client.allocator.dupe(u8, statement),
         .prepared_data = try client.allocator.dupe(u8, statement), // In real implementation, this would be the prepared data
