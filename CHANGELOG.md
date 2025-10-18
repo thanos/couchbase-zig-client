@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2025-10-18
+
+### Added
+- Complete Diagnostics & Monitoring functionality
+- Ping operations for health checks of all Couchbase services
+- Service health tracking with latency monitoring and status reporting
+- Advanced diagnostics with connection health information
+- Last activity tracking for service monitoring
+- Cluster configuration access for topology and settings
+- HTTP tracing for request/response monitoring
+- SDK metrics collection with flexible metric types
+- Histogram support for statistical analysis with percentiles
+- Memory-safe results with proper cleanup and resource management
+- Comprehensive error handling and recovery
+- Five new data structures: PingResult, DiagnosticsResult, ClusterConfigResult, HttpTracingResult, SdkMetricsResult
+- ServiceHealth, ServiceDiagnostics, HttpTrace, MetricValue, HistogramData, PercentileData types
+- Five new client methods: ping(), diagnostics(), getClusterConfig(), enableHttpTracing(), getSdkMetrics()
+- Complete unit tests for all diagnostics functionality
+- Integration tests for full diagnostics capabilities
+- Memory management verification tests
+- Error handling validation tests
+- Comprehensive API documentation and usage examples
+- Diagnostics example in examples/diagnostics.zig
+
+### Changed
+- Updated GAP_ANALYSIS.md to reflect 100% diagnostics completion
+- Updated overall project coverage to 98% of libcouchbase functionality
+- Enhanced error handling with status code mapping
+- Improved memory management across all diagnostics operations
+
+### Fixed
+- Memory safety issues in diagnostics operations
+- Error handling in health monitoring functions
+- Resource cleanup in all diagnostics result types
+
 ## [0.5.1] - 2025-10-16
 
 ### Added

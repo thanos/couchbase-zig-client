@@ -30,6 +30,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "basic", .path = "examples/basic.zig" },
         .{ .name = "kv_operations", .path = "examples/kv_operations.zig" },
         .{ .name = "query", .path = "examples/query.zig" },
+        .{ .name = "diagnostics", .path = "examples/diagnostics.zig" },
     };
 
     const example_step = b.step("examples", "Build all examples");
@@ -376,6 +377,33 @@ pub fn build(b: *std.Build) void {
     const query_options_memory_test_step = b.step("test-query-options-memory", "Run query options memory management tests");
     query_options_memory_test_step.dependOn(&run_query_options_memory_tests.step);
 
+    // Diagnostics tests
+    const diagnostics_tests = b.addTest(.{
+        .root_source_file = b.path("tests/diagnostics_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    diagnostics_tests.root_module.addImport("couchbase", couchbase_module);
+    diagnostics_tests.linkSystemLibrary("couchbase");
+    diagnostics_tests.linkLibC();
+
+    const run_diagnostics_tests = b.addRunArtifact(diagnostics_tests);
+    const diagnostics_test_step = b.step("test-diagnostics", "Run diagnostics and monitoring tests");
+    diagnostics_test_step.dependOn(&run_diagnostics_tests.step);
+
+    // Diagnostics unit tests
+    const diagnostics_unit_tests = b.addTest(.{
+        .root_source_file = b.path("tests/diagnostics_unit_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    diagnostics_unit_tests.root_module.addImport("couchbase", couchbase_module);
+    diagnostics_unit_tests.linkSystemLibrary("couchbase");
+    diagnostics_unit_tests.linkLibC();
+
+    const run_diagnostics_unit_tests = b.addRunArtifact(diagnostics_unit_tests);
+    const diagnostics_unit_test_step = b.step("test-diagnostics-unit", "Run diagnostics unit tests");
+    diagnostics_unit_test_step.dependOn(&run_diagnostics_unit_tests.step);
 
     const all_tests_step = b.step("test-all", "Run all test suites");
     all_tests_step.dependOn(&run_lib_unit_tests.step);
@@ -401,4 +429,6 @@ pub fn build(b: *std.Build) void {
     all_tests_step.dependOn(&run_transaction_tests.step);
     all_tests_step.dependOn(&run_advanced_n1ql_tests.step);
     all_tests_step.dependOn(&run_query_options_memory_tests.step);
+    all_tests_step.dependOn(&run_diagnostics_tests.step);
+    all_tests_step.dependOn(&run_diagnostics_unit_tests.step);
 }
