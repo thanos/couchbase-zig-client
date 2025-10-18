@@ -1,6 +1,6 @@
 # Gap Analysis: Zig Client vs libcouchbase C Library
 
-Version 0.5.2 - December 2024
+Version 0.5.2 - October 18, 2025
 
 This document provides a concise comparison of the Zig wrapper implementation against the full libcouchbase C library.
 

@@ -614,8 +614,8 @@ const DiagnosticsContext = struct {
 // Helper function to convert status code to error
 fn statusToError(rc: c.lcb_STATUS) ?Error {
     if (rc == c.LCB_SUCCESS) return null;
-    fromStatusCode(rc) catch |err| return err;
-    return null;
+    // fromStatusCode will return an error for non-success status codes
+    return fromStatusCode(rc) catch |err| err;
 }
 
 const UnlockContext = struct {

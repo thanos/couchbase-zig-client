@@ -19,11 +19,11 @@ pub fn main() !void {
     };
     defer client.disconnect();
 
-    std.debug.print("=== Couchbase Diagnostics & Monitoring Demo ===\n\n");
+    std.debug.print("=== Couchbase Diagnostics & Monitoring Demo ===\n\n", .{});
 
     // 1. Ping all services
-    std.debug.print("1. Pinging all services...\n");
-    const ping_result = client.ping(allocator) catch |err| {
+    std.debug.print("1. Pinging all services...\n", .{});
+    var ping_result = client.ping(allocator) catch |err| {
         std.debug.print("Ping failed: {}\n", .{err});
         return;
     };
@@ -42,8 +42,8 @@ pub fn main() !void {
     }
 
     // 2. Get diagnostics
-    std.debug.print("\n2. Getting diagnostics...\n");
-    const diag_result = client.diagnostics(allocator) catch |err| {
+    std.debug.print("\n2. Getting diagnostics...\n", .{});
+    var diag_result = client.diagnostics(allocator) catch |err| {
         std.debug.print("Diagnostics failed: {}\n", .{err});
         return;
     };
@@ -62,8 +62,8 @@ pub fn main() !void {
     }
 
     // 3. Get cluster configuration
-    std.debug.print("\n3. Getting cluster configuration...\n");
-    const cluster_config = client.getClusterConfig(allocator) catch |err| {
+    std.debug.print("\n3. Getting cluster configuration...\n", .{});
+    var cluster_config = client.getClusterConfig(allocator) catch |err| {
         std.debug.print("Cluster config failed: {}\n", .{err});
         return;
     };
@@ -74,13 +74,13 @@ pub fn main() !void {
         const preview_len = @min(300, cluster_config.config.len);
         std.debug.print("Config preview: {s}\n", .{cluster_config.config[0..preview_len]});
         if (cluster_config.config.len > 300) {
-            std.debug.print("... (truncated)\n");
+            std.debug.print("... (truncated)\n", .{});
         }
     }
 
     // 4. Get SDK metrics
-    std.debug.print("\n4. Getting SDK metrics...\n");
-    const metrics = client.getSdkMetrics(allocator) catch |err| {
+    std.debug.print("\n4. Getting SDK metrics...\n", .{});
+    var metrics = client.getSdkMetrics(allocator) catch |err| {
         std.debug.print("SDK metrics failed: {}\n", .{err});
         return;
     };
@@ -100,16 +100,16 @@ pub fn main() !void {
     }
 
     // 5. Enable HTTP tracing
-    std.debug.print("\n5. Enabling HTTP tracing...\n");
+    std.debug.print("\n5. Enabling HTTP tracing...\n", .{});
     client.enableHttpTracing(allocator) catch |err| {
         std.debug.print("Enable HTTP tracing failed: {}\n", .{err});
         return;
     };
-    std.debug.print("HTTP tracing enabled\n");
+    std.debug.print("HTTP tracing enabled\n", .{});
 
     // 6. Get HTTP traces
-    std.debug.print("\n6. Getting HTTP traces...\n");
-    const traces = client.getHttpTraces(allocator) catch |err| {
+    std.debug.print("\n6. Getting HTTP traces...\n", .{});
+    var traces = client.getHttpTraces(allocator) catch |err| {
         std.debug.print("Get HTTP traces failed: {}\n", .{err});
         return;
     };
@@ -118,8 +118,8 @@ pub fn main() !void {
     std.debug.print("HTTP traces collected: {}\n", .{traces.traces.len});
     
     for (traces.traces, 0..) |trace, i| {
-        std.debug.print("  Trace {}: {} {} - {}ms - {}\n", .{ i, trace.method, trace.url, trace.duration_ms, trace.status_code });
+        std.debug.print("  Trace {}: {s} {s} - {}ms - {}\n", .{ i, trace.method, trace.url, trace.duration_ms, trace.status_code });
     }
 
-    std.debug.print("\n=== Diagnostics Demo Complete ===\n");
+    std.debug.print("\n=== Diagnostics Demo Complete ===\n", .{});
 }
