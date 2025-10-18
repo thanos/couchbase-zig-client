@@ -274,6 +274,26 @@ pub const Client = struct {
         return operations.diagnostics(self, allocator);
     }
 
+    /// Get cluster configuration
+    pub fn getClusterConfig(self: *Client, allocator: std.mem.Allocator) Error!operations.ClusterConfigResult {
+        return operations.getClusterConfig(self, allocator);
+    }
+
+    /// Enable HTTP tracing
+    pub fn enableHttpTracing(self: *Client, allocator: std.mem.Allocator) Error!void {
+        return operations.enableHttpTracing(self, allocator);
+    }
+
+    /// Get HTTP traces
+    pub fn getHttpTraces(self: *Client, allocator: std.mem.Allocator) Error!operations.HttpTracingResult {
+        return operations.getHttpTraces(self, allocator);
+    }
+
+    /// Get SDK metrics
+    pub fn getSdkMetrics(self: *Client, allocator: std.mem.Allocator) Error!operations.SdkMetricsResult {
+        return operations.getSdkMetrics(self, allocator);
+    }
+
     /// Execute a view query
     pub fn viewQuery(
         self: *Client,

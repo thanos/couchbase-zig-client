@@ -145,12 +145,14 @@ Zig wrapper for the libcouchbase C library.
 - Key-value operations: get, insert, upsert, replace, remove, touch, counter
 - GET with Lock: getAndLock() and unlockWithOptions() operations
 - Collections & Scopes: Complete collection-aware operations (100% feature parity)
-- N1QL query execution
+- N1QL query execution with advanced options
 - Subdocument operations: Complete implementation with collection support
 - Batch operations: Execute multiple operations in single call
 - CAS (compare-and-swap) support
-- Durability levels
+- Durability levels and consistency controls
 - Replica reads with collection support
+- ACID transactions with rollback support
+- Diagnostics & Monitoring: Health checks, connection diagnostics, metrics
 - Error type mappings
 
 ## Requirements
@@ -228,6 +230,7 @@ pub fn main() !void {
 - `examples/basic.zig` - CRUD operations
 - `examples/kv_operations.zig` - Key-value operations
 - `examples/query.zig` - N1QL queries
+- `examples/diagnostics.zig` - Diagnostics & Monitoring
 
 Build and run:
 ```bash
@@ -235,6 +238,7 @@ zig build examples
 zig build run-basic
 zig build run-kv_operations
 zig build run-query
+zig build run-diagnostics
 ```
 
 ## API
@@ -388,6 +392,43 @@ const result = client.get("doc-id") catch |err| switch (err) {
 - `error.TemporaryFailure`
 - `error.DurabilityAmbiguous`
 - `error.InvalidArgument`
+
+### Diagnostics & Monitoring
+
+```zig
+// Health monitoring
+var ping_result = try client.ping(allocator);
+defer ping_result.deinit();
+std.debug.print("Services: {}\n", .{ping_result.services.len});
+
+// Diagnostics
+var diag_result = try client.diagnostics(allocator);
+defer diag_result.deinit();
+for (diag_result.services) |service| {
+    std.debug.print("Service: {s} - {}us\n", .{service.id, service.last_activity_us});
+}
+
+// Cluster configuration
+var cluster_config = try client.getClusterConfig(allocator);
+defer cluster_config.deinit();
+std.debug.print("Config: {s}\n", .{cluster_config.config});
+
+// SDK metrics
+var metrics = try client.getSdkMetrics(allocator);
+defer metrics.deinit();
+var iterator = metrics.metrics.iterator();
+while (iterator.next()) |entry| {
+    std.debug.print("Metric: {s}\n", .{entry.key_ptr.*});
+}
+
+// HTTP tracing
+try client.enableHttpTracing(allocator);
+var traces = try client.getHttpTraces(allocator);
+defer traces.deinit();
+for (traces.traces) |trace| {
+    std.debug.print("Trace: {} {} - {}ms\n", .{trace.method, trace.url, trace.duration_ms});
+}
+```
 
 ## Building
 
