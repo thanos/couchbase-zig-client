@@ -126,6 +126,58 @@ test "SDK metrics result creation and cleanup" {
     metrics_result.deinit();
 }
 
+test "SDK metrics memory cleanup with text and histogram values" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Test SdkMetricsResult with text and histogram values that need cleanup
+    var metrics = std.StringHashMap(couchbase.MetricValue).init(allocator);
+    
+    // Add a text metric
+    const text_key = try allocator.dupe(u8, "server_version");
+    const text_value = try allocator.dupe(u8, "7.0.0");
+    try metrics.put(text_key, .{ .text = text_value });
+    
+    // Add a histogram metric
+    const histogram_key = try allocator.dupe(u8, "operation_latency");
+    const percentiles = try allocator.alloc(couchbase.PercentileData, 3);
+    percentiles[0] = couchbase.PercentileData{ .percentile = 50.0, .value = 100.0 };
+    percentiles[1] = couchbase.PercentileData{ .percentile = 95.0, .value = 200.0 };
+    percentiles[2] = couchbase.PercentileData{ .percentile = 99.0, .value = 500.0 };
+    
+    const histogram_data = couchbase.HistogramData{
+        .count = 1000,
+        .min = 50.0,
+        .max = 1000.0,
+        .mean = 150.0,
+        .std_dev = 75.0,
+        .percentiles = percentiles,
+        .allocator = allocator,
+    };
+    
+    try metrics.put(histogram_key, .{ .histogram = histogram_data });
+    
+    var metrics_result = couchbase.SdkMetricsResult{
+        .metrics = metrics,
+        .allocator = allocator,
+    };
+    
+    // Test that we can access the data
+    try std.testing.expectEqual(@as(usize, 2), metrics_result.metrics.count());
+    
+    const text_entry = metrics_result.metrics.get("server_version").?;
+    try std.testing.expectEqualStrings("7.0.0", text_entry.text);
+    
+    const histogram_entry = metrics_result.metrics.get("operation_latency").?;
+    try std.testing.expectEqual(@as(u64, 1000), histogram_entry.histogram.count);
+    try std.testing.expectEqual(@as(f64, 150.0), histogram_entry.histogram.mean);
+    try std.testing.expectEqual(@as(usize, 3), histogram_entry.histogram.percentiles.len);
+    
+    // Test cleanup - this should free all nested allocations
+    metrics_result.deinit();
+}
+
 test "HTTP tracing result creation and cleanup" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();

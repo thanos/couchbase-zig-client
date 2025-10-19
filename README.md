@@ -426,7 +426,7 @@ try client.enableHttpTracing(allocator);
 var traces = try client.getHttpTraces(allocator);
 defer traces.deinit();
 for (traces.traces) |trace| {
-    std.debug.print("Trace: {} {} - {}ms\n", .{trace.method, trace.url, trace.duration_ms});
+    std.debug.print("Trace: {s} {s} - {}ms\n", .{trace.method, trace.url, trace.duration_ms});
 }
 ```
 

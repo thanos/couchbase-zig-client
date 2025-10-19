@@ -557,7 +557,21 @@ pub const SdkMetricsResult = struct {
     pub fn deinit(self: *SdkMetricsResult) void {
         var iterator = self.metrics.iterator();
         while (iterator.next()) |entry| {
+            // Free the key
             self.allocator.free(entry.key_ptr.*);
+            
+            // Free the value if it contains allocated memory
+            switch (entry.value_ptr.*) {
+                .text => |text| {
+                    self.allocator.free(text);
+                },
+                .histogram => |*histogram| {
+                    histogram.deinit();
+                },
+                .counter, .gauge => {
+                    // These don't contain allocated memory, nothing to free
+                },
+            }
         }
         self.metrics.deinit();
     }
@@ -2810,9 +2824,9 @@ pub fn storeWithDurability(client: *Client, key: []const u8, value: []const u8, 
 
 /// Ping operation
 pub fn ping(client: *Client, allocator: std.mem.Allocator) Error!PingResult {
-    // Use the client to perform a simple health check
-    // This is a simplified implementation that uses the client's connection status
-    _ = client; // Use client to avoid unused parameter warning
+    // TODO: This is a stub implementation. Should use lcb_ping() with proper callback handling
+    // to get real service health information from the Couchbase cluster.
+    _ = client; // Suppress unused variable warning in stub implementation
     
     // Create a basic ping result based on client connection status
     const id = try allocator.dupe(u8, "ping");
@@ -2835,9 +2849,9 @@ pub fn ping(client: *Client, allocator: std.mem.Allocator) Error!PingResult {
 
 /// Diagnostics operation
 pub fn diagnostics(client: *Client, allocator: std.mem.Allocator) Error!DiagnosticsResult {
-    // Use the client to perform diagnostics
-    // This is a simplified implementation that uses the client's connection status
-    _ = client; // Use client to avoid unused parameter warning
+    // TODO: This is a stub implementation. Should use lcb_diag() with proper callback handling
+    // to get real connection diagnostics from the Couchbase cluster.
+    _ = client; // Suppress unused variable warning in stub implementation
     
     // Create a basic diagnostics result based on client connection status
     const id = try allocator.dupe(u8, "diagnostics");
@@ -2860,9 +2874,9 @@ pub fn diagnostics(client: *Client, allocator: std.mem.Allocator) Error!Diagnost
 
 /// Get cluster configuration
 pub fn getClusterConfig(client: *Client, allocator: std.mem.Allocator) Error!ClusterConfigResult {
-    // Use the client to get cluster configuration
-    // This is a simplified implementation that returns basic config info
-    _ = client; // Use client to avoid unused parameter warning
+    // TODO: This is a stub implementation. Should use lcb_cntl() with LCB_CNTL_CONFIG_CACHE
+    // to get real cluster configuration from the Couchbase cluster.
+    _ = client; // Suppress unused variable warning in stub implementation
     
     // Create a basic cluster configuration
     // In a real implementation, this would use lcb_cntl to get actual config
@@ -2877,19 +2891,19 @@ pub fn getClusterConfig(client: *Client, allocator: std.mem.Allocator) Error!Clu
 
 /// Enable HTTP tracing
 pub fn enableHttpTracing(client: *Client, allocator: std.mem.Allocator) Error!void {
-    _ = allocator;
-    // Use the client to enable HTTP tracing
-    // This is a simplified implementation that just returns success
-    _ = client; // Use client to avoid unused parameter warning
+    // TODO: This is a stub implementation. Should use lcb_cntl() with LCB_CNTL_HTTP_TRACE
+    // to enable real HTTP tracing in the Couchbase client.
+    _ = allocator; // Suppress unused variable warning in stub implementation
+    _ = client; // Suppress unused variable warning in stub implementation
     // For now, just return success
     // In a real implementation, this would enable HTTP tracing via lcb_cntl
 }
 
 /// Get HTTP traces
 pub fn getHttpTraces(client: *Client, allocator: std.mem.Allocator) Error!HttpTracingResult {
-    // Use the client to get HTTP traces
-    // This is a simplified implementation that returns empty traces
-    _ = client; // Use client to avoid unused parameter warning
+    // TODO: This is a stub implementation. Should implement HTTP trace collection
+    // using libcouchbase's HTTP tracing capabilities to get real trace data.
+    _ = client; // Suppress unused variable warning in stub implementation
     // This would require implementing HTTP trace collection
     // For now, return empty traces
     return HttpTracingResult{
@@ -2900,9 +2914,9 @@ pub fn getHttpTraces(client: *Client, allocator: std.mem.Allocator) Error!HttpTr
 
 /// Get SDK metrics
 pub fn getSdkMetrics(client: *Client, allocator: std.mem.Allocator) Error!SdkMetricsResult {
-    // Use the client to get SDK metrics
-    // This is a simplified implementation that returns basic metrics
-    _ = client; // Use client to avoid unused parameter warning
+    // TODO: This is a stub implementation. Should use lcb_cntl() with appropriate
+    // control codes to get real SDK metrics from the Couchbase client.
+    _ = client; // Suppress unused variable warning in stub implementation
     var metrics = std.StringHashMap(MetricValue).init(allocator);
     
     // For now, return basic metrics
@@ -2985,7 +2999,9 @@ pub fn executePrepared(client: *Client, allocator: std.mem.Allocator, statement:
 /// Note: This is a simplified implementation as libcouchbase doesn't expose
 /// collection manifest management directly through the C API
 pub fn getCollectionManifest(client: *Client, allocator: std.mem.Allocator) Error!types.CollectionManifest {
-    _ = client; // Suppress unused variable warning
+    // TODO: This is a stub implementation. Should use lcb_getmanifest() or similar
+    // libcouchbase functions to get real collection manifest from the cluster.
+    _ = client; // Suppress unused variable warning in stub implementation
     
     // Create an empty manifest as libcouchbase doesn't expose collection manifest directly
     var collections = std.ArrayList(types.CollectionManifestEntry).init(allocator);
