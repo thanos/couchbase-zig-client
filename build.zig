@@ -31,6 +31,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "kv_operations", .path = "examples/kv_operations.zig" },
         .{ .name = "query", .path = "examples/query.zig" },
         .{ .name = "diagnostics", .path = "examples/diagnostics.zig" },
+        .{ .name = "error_handling_logging", .path = "examples/error_handling_logging.zig" },
     };
 
     const example_step = b.step("examples", "Build all examples");
@@ -405,6 +406,20 @@ pub fn build(b: *std.Build) void {
     const diagnostics_unit_test_step = b.step("test-diagnostics-unit", "Run diagnostics unit tests");
     diagnostics_unit_test_step.dependOn(&run_diagnostics_unit_tests.step);
 
+    // Error handling and logging tests
+    const error_handling_logging_tests = b.addTest(.{
+        .root_source_file = b.path("tests/error_handling_logging_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    error_handling_logging_tests.root_module.addImport("couchbase", couchbase_module);
+    error_handling_logging_tests.linkSystemLibrary("couchbase");
+    error_handling_logging_tests.linkLibC();
+
+    const run_error_handling_logging_tests = b.addRunArtifact(error_handling_logging_tests);
+    const error_handling_logging_test_step = b.step("test-error-handling-logging", "Run error handling and logging tests");
+    error_handling_logging_test_step.dependOn(&run_error_handling_logging_tests.step);
+
     const all_tests_step = b.step("test-all", "Run all test suites");
     all_tests_step.dependOn(&run_lib_unit_tests.step);
     all_tests_step.dependOn(&run_unit_tests.step);
@@ -431,4 +446,5 @@ pub fn build(b: *std.Build) void {
     all_tests_step.dependOn(&run_query_options_memory_tests.step);
     all_tests_step.dependOn(&run_diagnostics_tests.step);
     all_tests_step.dependOn(&run_diagnostics_unit_tests.step);
+    all_tests_step.dependOn(&run_error_handling_logging_tests.step);
 }
