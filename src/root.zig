@@ -25,6 +25,20 @@ pub const MutationToken = types.MutationToken;
 pub const ObserveResult = types.ObserveResult;
 pub const ObserveOptions = types.ObserveOptions;
 
+// Diagnostics & Monitoring types
+pub const PingResult = operations.PingResult;
+pub const ServiceHealth = operations.ServiceHealth;
+pub const ServiceState = operations.ServiceState;
+pub const DiagnosticsResult = operations.DiagnosticsResult;
+pub const ServiceDiagnostics = operations.ServiceDiagnostics;
+pub const ClusterConfigResult = operations.ClusterConfigResult;
+pub const HttpTracingResult = operations.HttpTracingResult;
+pub const HttpTrace = operations.HttpTrace;
+pub const SdkMetricsResult = operations.SdkMetricsResult;
+pub const MetricValue = operations.MetricValue;
+pub const HistogramData = operations.HistogramData;
+pub const PercentileData = operations.PercentileData;
+
 // Transaction types
 pub const TransactionContext = types.TransactionContext;
 pub const TransactionResult = types.TransactionResult;
