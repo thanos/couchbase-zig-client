@@ -32,6 +32,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "query", .path = "examples/query.zig" },
         .{ .name = "diagnostics", .path = "examples/diagnostics.zig" },
         .{ .name = "error_handling_logging", .path = "examples/error_handling_logging.zig" },
+        .{ .name = "binary_protocol", .path = "examples/binary_protocol.zig" },
     };
 
     const example_step = b.step("examples", "Build all examples");
@@ -420,6 +421,20 @@ pub fn build(b: *std.Build) void {
     const error_handling_logging_test_step = b.step("test-error-handling-logging", "Run error handling and logging tests");
     error_handling_logging_test_step.dependOn(&run_error_handling_logging_tests.step);
 
+    // Binary protocol tests
+    const binary_protocol_tests = b.addTest(.{
+        .root_source_file = b.path("tests/binary_protocol_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    binary_protocol_tests.root_module.addImport("couchbase", couchbase_module);
+    binary_protocol_tests.linkSystemLibrary("couchbase");
+    binary_protocol_tests.linkLibC();
+
+    const run_binary_protocol_tests = b.addRunArtifact(binary_protocol_tests);
+    const binary_protocol_test_step = b.step("test-binary-protocol", "Run binary protocol tests");
+    binary_protocol_test_step.dependOn(&run_binary_protocol_tests.step);
+
     const all_tests_step = b.step("test-all", "Run all test suites");
     all_tests_step.dependOn(&run_lib_unit_tests.step);
     all_tests_step.dependOn(&run_unit_tests.step);
@@ -447,4 +462,5 @@ pub fn build(b: *std.Build) void {
     all_tests_step.dependOn(&run_diagnostics_tests.step);
     all_tests_step.dependOn(&run_diagnostics_unit_tests.step);
     all_tests_step.dependOn(&run_error_handling_logging_tests.step);
+    all_tests_step.dependOn(&run_binary_protocol_tests.step);
 }
