@@ -2,12 +2,21 @@ const std = @import("std");
 
 pub const c = @import("c.zig");
 pub const Client = @import("client.zig").Client;
-pub const Error = @import("error.zig").Error;
+pub const Error = @import("error_context.zig").Error;
 pub const StatusCode = @import("error.zig").StatusCode;
 pub const types = @import("types.zig");
 pub const operations = @import("operations.zig");
 pub const views = @import("views.zig");
 pub const transactions = @import("transactions.zig");
+
+// Error Handling & Logging
+pub const ErrorContext = @import("error_context.zig").ErrorContext;
+pub const LogLevel = @import("error_context.zig").LogLevel;
+pub const Logger = @import("logging.zig").Logger;
+pub const LoggingConfig = @import("logging.zig").LoggingConfig;
+pub const LogEntry = @import("logging.zig").LogEntry;
+pub const LogCallback = @import("logging.zig").LogCallback;
+pub const defaultLogCallback = @import("logging.zig").defaultLogCallback;
 
 // Re-export common types
 pub const Document = types.Document;

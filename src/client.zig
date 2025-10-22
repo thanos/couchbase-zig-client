@@ -1,7 +1,11 @@
 const std = @import("std");
 const c = @import("c.zig");
-const Error = @import("error.zig").Error;
-const fromStatusCode = @import("error.zig").fromStatusCode;
+const Error = @import("error_context.zig").Error;
+const fromStatusCode = @import("error_context.zig").fromStatusCode;
+const ErrorContext = @import("error_context.zig").ErrorContext;
+const Logger = @import("logging.zig").Logger;
+const LogLevel = @import("error_context.zig").LogLevel;
+const LoggingConfig = @import("logging.zig").LoggingConfig;
 const types = @import("types.zig");
 const operations = @import("operations.zig");
 const transactions = @import("transactions.zig");
@@ -12,6 +16,7 @@ pub const Client = struct {
     allocator: std.mem.Allocator,
     prepared_statements: std.StringHashMap(types.PreparedStatement),
     cache_config: types.PreparedStatementCache,
+    logger: Logger,
 
     /// Connection string options
     pub const ConnectOptions = struct {
@@ -20,6 +25,7 @@ pub const Client = struct {
         password: ?[]const u8 = null,
         bucket: ?[]const u8 = null,
         timeout_ms: u32 = 10000,
+        logging_config: ?LoggingConfig = null,
     };
 
     /// Create and connect to a Couchbase cluster
@@ -82,11 +88,16 @@ pub const Client = struct {
         rc = c.lcb_get_bootstrap_status(inst);
         try fromStatusCode(rc);
 
+        // Initialize logger
+        const logging_config = options.logging_config orelse LoggingConfig{};
+        const logger = Logger.init(allocator, logging_config);
+
         return Client{
             .instance = inst,
             .allocator = allocator,
             .prepared_statements = std.StringHashMap(types.PreparedStatement).init(allocator),
             .cache_config = .{},
+            .logger = logger,
         };
     }
 
@@ -525,5 +536,60 @@ pub const Client = struct {
     pub fn rollbackTransaction(self: *Client, ctx: *types.TransactionContext) Error!types.TransactionResult {
         _ = self;
         return transactions.rollbackTransaction(ctx);
+    }
+
+    /// Create an error context for detailed error information
+    pub fn createErrorContext(
+        self: *Client,
+        err: Error,
+        operation: []const u8,
+        status_code: c.lcb_STATUS,
+    ) !ErrorContext {
+        return ErrorContext.create(self.allocator, err, operation, status_code);
+    }
+
+    /// Log a message at the specified level
+    pub fn log(self: *Client, level: LogLevel, component: []const u8, message: []const u8) !void {
+        try self.logger.log(level, component, message);
+    }
+
+    /// Log a debug message
+    pub fn logDebug(self: *Client, component: []const u8, message: []const u8) !void {
+        try self.logger.debug(component, message);
+    }
+
+    /// Log an info message
+    pub fn logInfo(self: *Client, component: []const u8, message: []const u8) !void {
+        try self.logger.info(component, message);
+    }
+
+    /// Log a warning message
+    pub fn logWarn(self: *Client, component: []const u8, message: []const u8) !void {
+        try self.logger.warn(component, message);
+    }
+
+    /// Log an error message
+    pub fn logError(self: *Client, component: []const u8, message: []const u8) !void {
+        try self.logger.logError(component, message);
+    }
+
+    /// Log an error with context
+    pub fn logErrorWithContext(
+        self: *Client,
+        component: []const u8,
+        message: []const u8,
+        error_context: *ErrorContext,
+    ) !void {
+        try self.logger.logErrorWithContext(component, message, error_context);
+    }
+
+    /// Set the minimum log level
+    pub fn setLogLevel(self: *Client, level: LogLevel) void {
+        self.logger.setMinLevel(level);
+    }
+
+    /// Set a custom logging callback
+    pub fn setLogCallback(self: *Client, callback: ?@import("logging.zig").LogCallback) void {
+        self.logger.setCallback(callback);
     }
 };

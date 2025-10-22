@@ -2,6 +2,52 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.3] - 2025-10-18
+
+### Added
+- Comprehensive Error Handling & Logging system
+- Detailed error context information with structured error data
+- Custom logging callbacks for specialized log handling
+- Configurable log levels (DEBUG, INFO, WARN, ERROR, FATAL)
+- Error context with operation details, keys, collections, and metadata
+- Structured log entries with timestamps and component information
+- Runtime log level control and custom callback support
+- Memory management for error contexts and log entries
+- Integration with libcouchbase error codes and status mapping
+
+### New Types
+- `ErrorContext` - Rich error information with metadata and context
+- `LogLevel` - Enum for different log levels
+- `LoggingConfig` - Configuration for logging behavior
+- `LogEntry` - Structured log entry with metadata
+- `LogCallback` - Type for custom logging functions
+
+### New Client Methods
+- `createErrorContext()` - Create detailed error context
+- `log()`, `logDebug()`, `logInfo()`, `logWarn()`, `logError()` - Logging methods
+- `logErrorWithContext()` - Log errors with full context
+- `setLogLevel()` - Dynamic log level control
+- `setLogCallback()` - Set custom logging callback
+
+### Examples
+- `examples/error_handling_logging.zig` - Comprehensive error handling and logging demo
+- Custom logging callback examples
+- Error context creation and usage examples
+- Log level control demonstrations
+
+### Testing
+- `tests/error_handling_logging_test.zig` - Comprehensive test suite
+- Error context creation and cleanup tests
+- Logging system functionality tests
+- Custom callback tests
+- Client integration tests
+
+### Documentation
+- Complete API reference for error handling and logging
+- Usage examples and best practices
+- Migration guide from v0.5.2
+- Performance considerations and optimizations
+
 ## [0.5.2] - 2025-10-18
 
 ### Added
