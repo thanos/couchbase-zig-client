@@ -10,6 +10,24 @@ Zig wrapper for the libcouchbase C library.
 
 
 
+## Version 0.5.3 - Error Handling & Logging
+
+### New Features
+- **Error Context**: Detailed error context information with structured metadata
+- **Custom Logging**: User-defined logging callbacks for specialized log handling
+- **Log Level Control**: Configurable logging levels (DEBUG, INFO, WARN, ERROR, FATAL)
+- **Enhanced Error Mapping**: Specific subdocument error codes mapped to distinct error types
+- **File Logging**: Proper append-mode file logging to preserve log history
+- **Memory Management**: Comprehensive cleanup for all error context and log entry data
+
+### Technical Details
+- `ErrorContext` struct with operation, key, collection, scope, and metadata information
+- `Logger` with configurable levels and custom callback support
+- `LogEntry` with timestamp, level, component, message, and optional error context
+- Specific subdocument error mapping (PathNotFound, PathExists, PathMismatch, PathInvalid, ValueTooDeep)
+- File logging with proper append mode to preserve log history across runs
+- Memory-safe implementation with proper cleanup for all allocated data
+
 ## Version 0.5.1 - Advanced N1QL Query Options
 
 ### New Features
@@ -153,7 +171,9 @@ Zig wrapper for the libcouchbase C library.
 - Replica reads with collection support
 - ACID transactions with rollback support
 - Diagnostics & Monitoring: Health checks, connection diagnostics, metrics
-- Error type mappings
+- Error Handling & Logging: Detailed error context, custom logging, log level control
+- Enhanced Error Mapping: Specific subdocument error types with detailed context
+- File Logging: Append-mode logging with log history preservation
 
 ## Requirements
 
@@ -231,6 +251,7 @@ pub fn main() !void {
 - `examples/kv_operations.zig` - Key-value operations
 - `examples/query.zig` - N1QL queries
 - `examples/diagnostics.zig` - Diagnostics & Monitoring
+- `examples/error_handling_logging.zig` - Error Handling & Logging
 
 Build and run:
 ```bash
@@ -239,6 +260,7 @@ zig build run-basic
 zig build run-kv_operations
 zig build run-query
 zig build run-diagnostics
+zig build run-error_handling_logging
 ```
 
 ## API
@@ -347,9 +369,42 @@ for (result.rows) |row| {
 }
 ```
 
-### Error Handling
+### Error Handling & Logging
 
 ```zig
+// Configure logging with custom callback
+const logging_config = couchbase.LoggingConfig{
+    .min_level = .debug,
+    .callback = customLogCallback,
+    .include_timestamps = true,
+    .include_component = true,
+    .include_metadata = true,
+};
+
+var client = try couchbase.Client.connect(allocator, .{
+    .connection_string = "couchbase://localhost",
+    .username = "Administrator", 
+    .password = "password",
+    .bucket = "default",
+    .logging_config = logging_config,
+});
+
+// Create error context for detailed error information
+var error_context = try client.createErrorContext(
+    couchbase.Error.DocumentNotFound,
+    "get",
+    couchbase.StatusCode.KeyNotFound,
+);
+defer error_context.deinit();
+
+try error_context.withKey("user:123");
+try error_context.withCollection("users", "default");
+try error_context.addMetadata("timeout_ms", "5000");
+
+// Log error with context
+try client.logErrorWithContext("operations", "Failed to retrieve document", &error_context);
+
+// Basic error handling
 const result = client.get("doc-id") catch |err| switch (err) {
     error.DocumentNotFound => {
         return;
@@ -361,8 +416,61 @@ const result = client.get("doc-id") catch |err| switch (err) {
 };
 ```
 
+### Custom Logging Callback
+
+```zig
+/// Custom logging callback that writes to a file with append mode
+fn customLogCallback(entry: *const couchbase.LogEntry) void {
+    const file = std.fs.cwd().openFile("couchbase.log", .{ 
+        .mode = .write_only,
+    }) catch |err| {
+        if (err == error.FileNotFound) {
+            const file = std.fs.cwd().createFile("couchbase.log", .{}) catch return;
+            defer file.close();
+            file.writer().print("{}\n", .{entry}) catch {};
+        }
+        return;
+    };
+    defer file.close();
+    
+    // Seek to end of file to append
+    file.seekTo(file.getEndPos() catch return) catch return;
+    file.writer().print("{}\n", .{entry}) catch {};
+}
+```
+
+### Enhanced Error Types
+
+```zig
+// Subdocument errors now have specific types
+const result = client.lookupIn(allocator, "doc-id", specs) catch |err| switch (err) {
+    error.SubdocPathNotFound => {
+        // Path does not exist in document
+        return;
+    },
+    error.SubdocPathExists => {
+        // Path already exists (for add operations)
+        return;
+    },
+    error.SubdocPathMismatch => {
+        // Path mismatch (type mismatch)
+        return;
+    },
+    error.SubdocPathInvalid => {
+        // Invalid path syntax
+        return;
+    },
+    error.SubdocValueTooDeep => {
+        // Value nesting too deep
+        return;
+    },
+    else => return err,
+};
+```
+
 ## Client Methods
 
+### Core Operations
 - `connect(allocator, options)` - Connect to cluster
 - `disconnect()` - Disconnect and cleanup
 - `get(key)` - Get document
@@ -375,14 +483,34 @@ const result = client.get("doc-id") catch |err| switch (err) {
 - `decrement(key, delta, options)` - Decrement counter
 - `touch(key, expiry)` - Update expiration
 - `unlock(key, cas)` - Unlock document
+
+### Query Operations
 - `query(allocator, statement, options)` - Execute N1QL query
 - `lookupIn(allocator, key, specs)` - Subdocument lookup
 - `mutateIn(allocator, key, specs, options)` - Subdocument mutation
+
+### Diagnostics & Monitoring
 - `ping(allocator)` - Ping services (stub)
 - `diagnostics(allocator)` - Get diagnostics (stub)
+- `getClusterConfig(allocator)` - Get cluster configuration
+- `getSdkMetrics(allocator)` - Get SDK metrics
+- `enableHttpTracing(allocator)` - Enable HTTP tracing
+- `getHttpTraces(allocator)` - Get HTTP traces
+
+### Error Handling & Logging
+- `createErrorContext(err, operation, status_code)` - Create error context
+- `log(level, component, message)` - Log message
+- `logDebug(component, message)` - Log debug message
+- `logInfo(component, message)` - Log info message
+- `logWarn(component, message)` - Log warning message
+- `logError(component, message)` - Log error message
+- `logErrorWithContext(component, message, error_context)` - Log error with context
+- `setLogLevel(level)` - Set minimum log level
+- `setLogCallback(callback)` - Set custom logging callback
 
 ## Error Types
 
+### Core Errors
 - `error.DocumentNotFound`
 - `error.DocumentExists`
 - `error.DocumentLocked`
@@ -392,6 +520,21 @@ const result = client.get("doc-id") catch |err| switch (err) {
 - `error.TemporaryFailure`
 - `error.DurabilityAmbiguous`
 - `error.InvalidArgument`
+
+### Subdocument Errors (Enhanced)
+- `error.SubdocPathNotFound` - Path does not exist in document
+- `error.SubdocPathExists` - Path already exists (for add operations)
+- `error.SubdocPathMismatch` - Path mismatch (type mismatch)
+- `error.SubdocPathInvalid` - Invalid path syntax
+- `error.SubdocValueTooDeep` - Value nesting too deep
+
+### Collection & Scope Errors
+- `error.CollectionNotFound`
+- `error.ScopeNotFound`
+
+### Durability Errors
+- `error.DurabilityImpossible`
+- `error.DurabilitySyncWriteInProgress`
 
 ### Diagnostics & Monitoring
 
@@ -547,14 +690,19 @@ Implemented:
 - Durability levels
 - N1QL queries
 - Replica reads
-- Error handling
-- 69 comprehensive tests
+- ACID transactions with rollback support
+- Collections & Scopes API (100% feature parity)
+- Enhanced error handling with detailed context
+- Custom logging with configurable levels
+- Diagnostics & monitoring
+- Enhanced subdocument error mapping
+- File logging with append mode
+- 64+ comprehensive tests
 
 Not implemented:
 - Analytics queries
 - Full-text search
 - Spatial views
-- Transactions
 - Connection pooling
 - Async support
 
