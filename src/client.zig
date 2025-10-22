@@ -9,6 +9,7 @@ const LoggingConfig = @import("logging.zig").LoggingConfig;
 const types = @import("types.zig");
 const operations = @import("operations.zig");
 const transactions = @import("transactions.zig");
+const binary_protocol = @import("binary_protocol.zig");
 
 /// Couchbase client
 pub const Client = struct {
@@ -17,6 +18,7 @@ pub const Client = struct {
     prepared_statements: std.StringHashMap(types.PreparedStatement),
     cache_config: types.PreparedStatementCache,
     logger: Logger,
+    binary_protocol: binary_protocol.BinaryProtocol,
 
     /// Connection string options
     pub const ConnectOptions = struct {
@@ -92,12 +94,16 @@ pub const Client = struct {
         const logging_config = options.logging_config orelse LoggingConfig{};
         const logger = Logger.init(allocator, logging_config);
 
+        // Initialize binary protocol
+        const binary_protocol_instance = binary_protocol.BinaryProtocol.init(allocator);
+
         return Client{
             .instance = inst,
             .allocator = allocator,
             .prepared_statements = std.StringHashMap(types.PreparedStatement).init(allocator),
             .cache_config = .{},
             .logger = logger,
+            .binary_protocol = binary_protocol_instance,
         };
     }
 
@@ -591,5 +597,42 @@ pub const Client = struct {
     /// Set a custom logging callback
     pub fn setLogCallback(self: *Client, callback: ?@import("logging.zig").LogCallback) void {
         self.logger.setCallback(callback);
+    }
+
+    /// Binary Protocol Methods
+
+    /// Negotiate binary protocol features with server
+    pub fn negotiateBinaryFeatures(self: *Client) !void {
+        try self.binary_protocol.negotiateFeatures();
+    }
+
+    /// Store binary document
+    pub fn storeBinary(self: *Client, key: []const u8, document: binary_protocol.BinaryDocument, context: ?*binary_protocol.BinaryOperationContext) !void {
+        try self.binary_protocol.storeBinary(key, document, context);
+    }
+
+    /// Retrieve binary document
+    pub fn getBinary(self: *Client, key: []const u8, context: ?*binary_protocol.BinaryOperationContext) !binary_protocol.BinaryDocument {
+        return try self.binary_protocol.getBinary(key, context);
+    }
+
+    /// Start DCP stream
+    pub fn startDcpStream(self: *Client, bucket: []const u8, vbucket: u16) !void {
+        try self.binary_protocol.startDcpStream(bucket, vbucket);
+    }
+
+    /// Get next DCP event
+    pub fn getNextDcpEvent(self: *Client) !?binary_protocol.DcpEvent {
+        return try self.binary_protocol.getNextDcpEvent();
+    }
+
+    /// Get binary protocol feature flags
+    pub fn getBinaryFeatureFlags(self: *Client) binary_protocol.FeatureFlags {
+        return self.binary_protocol.feature_flags;
+    }
+
+    /// Get protocol version
+    pub fn getProtocolVersion(self: *Client) ?binary_protocol.ProtocolVersion {
+        return self.binary_protocol.protocol_version;
     }
 };

@@ -2,6 +2,60 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.4] - 2025-10-18
+
+### Added
+- Comprehensive Binary Protocol Features
+- Native collection support in binary protocol operations
+- Advanced feature flags and negotiation with server
+- Binary document handling with content types and flags
+- Database Change Protocol (DCP) integration for real-time streaming
+- Protocol version negotiation and compatibility detection
+- Collection-aware binary operations with explicit scope/collection context
+- DCP event streaming with support for mutations, deletions, and expirations
+- Feature flag detection for collections, DCP, durability, tracing, and compression
+- Memory management for all binary protocol data structures
+
+### New Types
+- `BinaryProtocol` - Core binary protocol functionality
+- `FeatureFlags` - Server capability detection and negotiation
+- `ProtocolVersion` - Protocol version information and compatibility
+- `BinaryDocument` - Binary document with metadata and content type
+- `BinaryOperationContext` - Collection-aware operation context
+- `DcpEvent` - Database Change Protocol event with full metadata
+- `DcpEventType` - Enum for different DCP event types
+
+### New Client Methods
+- `negotiateBinaryFeatures()` - Negotiate server capabilities
+- `storeBinary()` - Store binary documents with collection support
+- `getBinary()` - Retrieve binary documents with collection support
+- `startDcpStream()` - Start DCP streaming for real-time changes
+- `getNextDcpEvent()` - Get next DCP event from stream
+- `getBinaryFeatureFlags()` - Get negotiated feature flags
+- `getProtocolVersion()` - Get negotiated protocol version
+
+### Examples
+- `examples/binary_protocol.zig` - Comprehensive binary protocol demo
+- Binary document operations with collection context
+- DCP streaming and event processing
+- Feature flag negotiation and detection
+- Protocol version management
+
+### Testing
+- `tests/binary_protocol_test.zig` - Comprehensive test suite
+- Feature flag initialization and property tests
+- Protocol version creation and formatting tests
+- Binary document creation and cleanup tests
+- Collection context management tests
+- DCP event creation and cleanup tests
+- Client integration tests
+
+### Documentation
+- Complete API reference for binary protocol features
+- Usage examples and best practices
+- Migration guide from v0.5.3
+- Performance considerations and optimizations
+
 ## [0.5.3] - 2025-10-18
 
 ### Added

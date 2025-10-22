@@ -18,6 +18,15 @@ pub const LogEntry = @import("logging.zig").LogEntry;
 pub const LogCallback = @import("logging.zig").LogCallback;
 pub const defaultLogCallback = @import("logging.zig").defaultLogCallback;
 
+// Binary Protocol Features
+pub const BinaryProtocol = @import("binary_protocol.zig").BinaryProtocol;
+pub const FeatureFlags = @import("binary_protocol.zig").FeatureFlags;
+pub const ProtocolVersion = @import("binary_protocol.zig").ProtocolVersion;
+pub const BinaryDocument = @import("binary_protocol.zig").BinaryDocument;
+pub const BinaryOperationContext = @import("binary_protocol.zig").BinaryOperationContext;
+pub const DcpEvent = @import("binary_protocol.zig").DcpEvent;
+pub const DcpEventType = @import("binary_protocol.zig").DcpEventType;
+
 // Re-export common types
 pub const Document = types.Document;
 pub const GetResult = operations.GetResult;
