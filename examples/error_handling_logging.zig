@@ -18,7 +18,7 @@ fn customLogCallback(entry: *const couchbase.LogEntry) void {
     defer file.close();
     
     // Seek to end of file to append
-    file.seekTo(file.getEndPos() catch return) catch return; // Seek to end
+    file.seekTo(file.getEndPos() catch return) catch return;
     file.writer().print("{}\n", .{entry}) catch {};
 }
 
