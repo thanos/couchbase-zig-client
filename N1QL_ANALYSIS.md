@@ -2,7 +2,7 @@
 
 ## Current Implementation Status (v0.3.5)
 
-### ✅ Implemented Features (Complete)
+### Implemented Features (Complete)
 
 #### Core N1QL Features
 - Basic N1QL query execution (`lcb_query`)
@@ -57,7 +57,7 @@
 - **Search Facets**: Complete support
 - **Search Highlighting**: Complete support
 
-### ⚠️ Partially Implemented Features
+### Partially Implemented Features
 
 #### Query Metadata (Complete)
 - **Query Metadata Parsing**: Complete with comprehensive JSON parsing
@@ -69,16 +69,16 @@
 
 | Feature | Status | Version | Coverage |
 |---------|--------|---------|----------|
-| Basic Queries | ✅ Complete | v0.1.0 | 100% |
-| Query Parameters | ✅ Complete | v0.3.1 | 100% |
-| Scan Consistency | ✅ Complete | v0.3.2 | 100% |
-| Performance Options | ✅ Complete | v0.3.2 | 100% |
-| Query Profiling | ✅ Complete | v0.3.2 | 100% |
-| Prepared Statements | ✅ Complete | v0.3.3 | 100% |
-| Query Cancellation | ✅ Complete | v0.3.4 | 100% |
-| Analytics Queries | ✅ Complete | v0.3.2 | 100% |
-| Search Queries (FTS) | ✅ Complete | v0.3.2 | 100% |
-| Enhanced Metadata | ✅ Complete | v0.3.5 | 100% |
+| Basic Queries | Complete | v0.1.0 | 100% |
+| Query Parameters | Complete | v0.3.1 | 100% |
+| Scan Consistency | Complete | v0.3.2 | 100% |
+| Performance Options | Complete | v0.3.2 | 100% |
+| Query Profiling | Complete | v0.3.2 | 100% |
+| Prepared Statements | Complete | v0.3.3 | 100% |
+| Query Cancellation | Complete | v0.3.4 | 100% |
+| Analytics Queries | Complete | v0.3.2 | 100% |
+| Search Queries (FTS) | Complete | v0.3.2 | 100% |
+| Enhanced Metadata | Complete | v0.3.5 | 100% |
 
 **Current N1QL Coverage: ~100%**  
 **Target N1QL Coverage: ~100%**
@@ -115,7 +115,7 @@
 
 ## Implementation Status Summary
 
-### ✅ Completed (v0.3.4)
+### Completed (v0.3.4)
 - All core N1QL query functionality
 - All advanced query options
 - All query management features
@@ -123,12 +123,12 @@
 - Comprehensive test coverage
 - Production-ready implementation
 
-### ⚠️ Minor Improvements Needed
+### Minor Improvements Needed
 - Enhanced metadata parsing (70% complete)
 - Consistency tokens implementation (stubbed)
 - Advanced query metrics
 
-### 📊 Coverage Metrics
+### Coverage Metrics
 - **N1QL Query Operations**: 100% (15/15)
 - **Query Test Coverage**: 100% (80+ tests)
 - **Feature Completeness**: 97%

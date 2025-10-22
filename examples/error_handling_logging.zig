@@ -95,11 +95,11 @@ pub fn main() !void {
     const customCallback = struct {
         fn callback(entry: *const couchbase.LogEntry) void {
             const level_str = switch (entry.level) {
-                .debug => "🐛",
-                .info => "ℹ️",
-                .warn => "⚠️",
-                .err => "❌",
-                .fatal => "💀",
+                .debug => "DEBUG",
+                .info => "INFO",
+                .warn => "WARN",
+                .err => "ERROR",
+                .fatal => "FATAL",
             };
             std.debug.print("{s} [{}] {s}: {s}\n", .{ 
                 level_str, 
