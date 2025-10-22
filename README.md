@@ -10,7 +10,7 @@ Zig wrapper for the libcouchbase C library.
 
 
 
-## Version 0.5.1 - Advanced N1QL Query Options
+## Version 0.5.3 - Advanced N1QL Query Options
 
 ### New Features
 - Query Profile support (off, phases, timings modes)

@@ -15,6 +15,67 @@ pub const FeatureFlags = struct {
     binary_data: bool = false,
     /// Advanced compression
     compression: bool = false,
+    
+    pub fn format(self: FeatureFlags, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = options;
+        
+        if (std.mem.eql(u8, fmt, "s")) {
+            // Simple format: "collections=true,dcp=false,..."
+            try writer.print("collections={},dcp={},durability={},tracing={},binary_data={},compression={}", .{
+                self.collections, self.dcp, self.durability, self.tracing, self.binary_data, self.compression
+            });
+        } else if (std.mem.eql(u8, fmt, "v")) {
+            // Verbose format with labels
+            try writer.print("FeatureFlags{{\n", .{});
+            try writer.print("  collections: {},\n", .{self.collections});
+            try writer.print("  dcp: {},\n", .{self.dcp});
+            try writer.print("  durability: {},\n", .{self.durability});
+            try writer.print("  tracing: {},\n", .{self.tracing});
+            try writer.print("  binary_data: {},\n", .{self.binary_data});
+            try writer.print("  compression: {},\n", .{self.compression});
+            try writer.print("}}", .{});
+        } else if (std.mem.eql(u8, fmt, "c")) {
+            // Compact format: only enabled features
+            var first = true;
+            if (self.collections) {
+                try writer.print("collections", .{});
+                first = false;
+            }
+            if (self.dcp) {
+                if (!first) try writer.print(",", .{});
+                try writer.print("dcp", .{});
+                first = false;
+            }
+            if (self.durability) {
+                if (!first) try writer.print(",", .{});
+                try writer.print("durability", .{});
+                first = false;
+            }
+            if (self.tracing) {
+                if (!first) try writer.print(",", .{});
+                try writer.print("tracing", .{});
+                first = false;
+            }
+            if (self.binary_data) {
+                if (!first) try writer.print(",", .{});
+                try writer.print("binary_data", .{});
+                first = false;
+            }
+            if (self.compression) {
+                if (!first) try writer.print(",", .{});
+                try writer.print("compression", .{});
+                first = false;
+            }
+            if (first) {
+                try writer.print("none", .{});
+            }
+        } else {
+            // Default format: simple list
+            try writer.print("collections={},dcp={},durability={},tracing={},binary_data={},compression={}", .{
+                self.collections, self.dcp, self.durability, self.tracing, self.binary_data, self.compression
+            });
+        }
+    }
 };
 
 /// Protocol version information
@@ -24,9 +85,22 @@ pub const ProtocolVersion = struct {
     patch: u8,
     
     pub fn format(self: ProtocolVersion, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        _ = fmt;
-        _ = options;
-        try writer.print("{}.{}.{}", .{ self.major, self.minor, self.patch });
+        _ = options; // FormatOptions not used in this implementation
+        
+        // Support different format specifiers for version display
+        if (std.mem.eql(u8, fmt, "s")) {
+            // Simple format: "1.2.3"
+            try writer.print("{}.{}.{}", .{ self.major, self.minor, self.patch });
+        } else if (std.mem.eql(u8, fmt, "v")) {
+            // Verbose format: "Version 1.2.3"
+            try writer.print("Version {}.{}.{}", .{ self.major, self.minor, self.patch });
+        } else if (std.mem.eql(u8, fmt, "c")) {
+            // Compact format: "1.2"
+            try writer.print("{}.{}", .{ self.major, self.minor });
+        } else {
+            // Default format: "1.2.3"
+            try writer.print("{}.{}.{}", .{ self.major, self.minor, self.patch });
+        }
     }
 };
 
@@ -78,6 +152,37 @@ pub const DcpEvent = struct {
     pub fn deinit(self: *DcpEvent) void {
         self.allocator.free(self.key);
         if (self.value) |val| self.allocator.free(val);
+    }
+    
+    pub fn format(self: DcpEvent, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = options;
+        
+        if (std.mem.eql(u8, fmt, "s")) {
+            // Simple format: "mutation:key123"
+            try writer.print("{s}:{s}", .{ @tagName(self.event_type), self.key });
+        } else if (std.mem.eql(u8, fmt, "v")) {
+            // Verbose format with all details
+            try writer.print("DcpEvent{{\n", .{});
+            try writer.print("  type: {s},\n", .{@tagName(self.event_type)});
+            try writer.print("  key: {s},\n", .{self.key});
+            if (self.value) |val| {
+                try writer.print("  value: {s},\n", .{val});
+            } else {
+                try writer.print("  value: null,\n", .{});
+            }
+            try writer.print("  cas: {},\n", .{self.cas});
+            try writer.print("  flags: 0x{x},\n", .{self.flags});
+            try writer.print("  expiry: {},\n", .{self.expiry});
+            try writer.print("  sequence: {},\n", .{self.sequence});
+            try writer.print("  vbucket: {},\n", .{self.vbucket});
+            try writer.print("}}", .{});
+        } else if (std.mem.eql(u8, fmt, "c")) {
+            // Compact format: "MUTATION:key123:cas:vbucket"
+            try writer.print("{s}:{s}:{}:{}", .{ @tagName(self.event_type), self.key, self.cas, self.vbucket });
+        } else {
+            // Default format: simple with type and key
+            try writer.print("{s}:{s}", .{ @tagName(self.event_type), self.key });
+        }
     }
 };
 
