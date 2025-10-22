@@ -10,6 +10,31 @@ Zig wrapper for the libcouchbase C library.
 
 
 
+## Version 0.5.4 - Binary Protocol Features
+
+### New Features
+- **Comprehensive Binary Protocol Features**: Complete binary protocol implementation
+- **Native Collection Support**: Collection-aware binary protocol operations
+- **Advanced Feature Flags**: Server capability detection and negotiation
+- **Binary Document Handling**: Support for binary documents with content types and flags
+- **Database Change Protocol (DCP)**: Real-time streaming of database changes
+- **Protocol Version Negotiation**: Automatic version negotiation and compatibility detection
+- **Collection-Aware Operations**: Explicit scope/collection context for binary operations
+- **DCP Event Streaming**: Support for mutations, deletions, and expirations
+- **Feature Flag Detection**: Collections, DCP, durability, tracing, and compression support
+- **Memory Management**: Comprehensive cleanup for all binary protocol data structures
+
+### Technical Details
+- `BinaryProtocol` - Core binary protocol functionality
+- `FeatureFlags` - Server capability detection and negotiation
+- `ProtocolVersion` - Protocol version information and compatibility
+- `BinaryDocument` - Binary document with metadata and content type
+- `BinaryOperationContext` - Collection-aware operation context
+- `DcpEvent` - Database Change Protocol event with full metadata
+- `DcpEventType` - Enum for different DCP event types
+- Custom format specifiers for all binary protocol types
+- Memory-safe implementation with proper cleanup
+
 ## Version 0.5.3 - Advanced N1QL Query Options
 
 ### New Features
@@ -153,6 +178,7 @@ Zig wrapper for the libcouchbase C library.
 - Replica reads with collection support
 - ACID transactions with rollback support
 - Diagnostics & Monitoring: Health checks, connection diagnostics, metrics
+- Binary Protocol Features: Native binary document handling and DCP streaming
 - Error type mappings
 
 ## Requirements
@@ -428,6 +454,84 @@ defer traces.deinit();
 for (traces.traces) |trace| {
     std.debug.print("Trace: {s} {s} - {}ms\n", .{trace.method, trace.url, trace.duration_ms});
 }
+```
+
+### Binary Protocol Features
+
+```zig
+// Initialize binary protocol
+var client = try couchbase.Client.connect(allocator, .{
+    .connection_string = "couchbase://localhost",
+    .username = "Administrator",
+    .password = "password",
+    .bucket = "default",
+});
+
+// Negotiate binary protocol features
+try client.negotiateBinaryFeatures();
+const features = client.getBinaryFeatureFlags();
+const protocol_version = client.getProtocolVersion();
+
+std.debug.print("Features: {v}\n", .{features});
+if (protocol_version) |pv| {
+    std.debug.print("Protocol Version: {v}\n", .{pv});
+}
+
+// Binary document operations
+const binary_data = "Hello, Binary World!";
+var binary_doc = couchbase.BinaryDocument{
+    .data = binary_data,
+    .content_type = try allocator.dupe(u8, "application/octet-stream"),
+    .flags = 0x12345678,
+    .allocator = allocator,
+};
+defer binary_doc.deinit(allocator);
+
+// Create collection context
+var context = couchbase.BinaryOperationContext.init(allocator);
+defer context.deinit();
+try context.withCollection(allocator, "test", "default");
+
+// Store binary document
+try client.storeBinary("binary-key-1", binary_doc, &context);
+
+// Retrieve binary document
+var retrieved_doc = try client.getBinary("binary-key-1", &context);
+defer retrieved_doc.deinit(allocator);
+
+std.debug.print("Retrieved: {s}\n", .{retrieved_doc.data});
+if (retrieved_doc.content_type) |ct| {
+    std.debug.print("Content type: {s}\n", .{ct});
+}
+
+// DCP (Database Change Protocol) operations
+try client.startDcpStream("default", 0);
+
+// Process DCP events
+if (try client.getNextDcpEvent()) |event| {
+    var mutable_event = event;
+    defer mutable_event.deinit();
+    
+    std.debug.print("DCP Event: {v}\n", .{mutable_event});
+}
+```
+
+### Custom Format Specifiers
+
+```zig
+const version = couchbase.ProtocolVersion{ .major = 1, .minor = 2, .patch = 3 };
+const flags = couchbase.FeatureFlags{ .collections = true, .durability = true };
+
+// Different format options
+std.debug.print("Version - Default: {}\n", .{version});        // "1.2.3"
+std.debug.print("Version - Simple: {s}\n", .{version});        // "1.2.3"
+std.debug.print("Version - Verbose: {v}\n", .{version});       // "Version 1.2.3"
+std.debug.print("Version - Compact: {c}\n", .{version});       // "1.2"
+
+std.debug.print("Flags - Default: {}\n", .{flags});            // "collections=true,dcp=false,..."
+std.debug.print("Flags - Simple: {s}\n", .{flags});            // "collections=true,dcp=false,..."
+std.debug.print("Flags - Verbose: {v}\n", .{flags});           // "FeatureFlags{ collections: true, ... }"
+std.debug.print("Flags - Compact: {c}\n", .{flags});           // "collections,durability"
 ```
 
 ## Building
