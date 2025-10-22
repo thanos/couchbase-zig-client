@@ -194,6 +194,25 @@ fn getErrorDescription(allocator: std.mem.Allocator, status_code: c.lcb_STATUS) 
     return allocator.dupe(u8, std.mem.span(desc));
 }
 
+// libcouchbase error code constants
+// These values are defined in libcouchbase headers and represent specific error conditions
+const LCB_ERR_DURABILITY_AMBIGUOUS = 0xD0; // Durability ambiguous - cannot determine if mutation was persisted
+const LCB_ERR_DURABILITY_IMPOSSIBLE = 0xD1; // Durability impossible - mutation cannot be made durable
+const LCB_ERR_DURABILITY_SYNC_WRITE_IN_PROGRESS = 0xD2; // Sync write already in progress for this key
+
+// Subdocument error codes (0xC0-0xCF range)
+const LCB_ERR_SUBDOC_PATH_NOT_FOUND = 0xC0; // Path does not exist in document
+const LCB_ERR_SUBDOC_PATH_EXISTS = 0xC1;    // Path already exists (for add operations)
+const LCB_ERR_SUBDOC_PATH_MISMATCH = 0xC2;  // Path mismatch (type mismatch)
+const LCB_ERR_SUBDOC_PATH_INVALID = 0xC3;   // Invalid path syntax
+const LCB_ERR_SUBDOC_VALUE_TOO_DEEP = 0xC4; // Value nesting too deep
+const LCB_ERR_SUBDOC_RANGE_START = 0xC0;    // Start of subdocument error range
+const LCB_ERR_SUBDOC_RANGE_END = 0xCF;      // End of subdocument error range
+
+// Collection and scope error codes
+const LCB_ERR_COLLECTION_NOT_FOUND = 0x88; // Collection does not exist
+const LCB_ERR_SCOPE_NOT_FOUND = 0x8C;      // Scope does not exist
+
 /// Convert libcouchbase status code to Zig error
 pub fn fromStatusCode(rc: c.lcb_STATUS) Error!void {
     if (rc == c.LCB_SUCCESS) return;
@@ -214,17 +233,25 @@ pub fn fromStatusCode(rc: c.lcb_STATUS) Error!void {
     if (rc == c.LCB_ERR_DOCUMENT_LOCKED) return error.DocumentLocked;
     if (rc == c.LCB_ERR_BUCKET_NOT_FOUND) return error.BucketNotFound;
     
-    // Durability errors (if defined)
-    if (rc_int == 0xD0) return error.DurabilityAmbiguous;
-    if (rc_int == 0xD1) return error.DurabilityImpossible;
-    if (rc_int == 0xD2) return error.DurabilitySyncWriteInProgress;
+    // Durability errors - these are not always defined as constants in libcouchbase headers
+    // but are part of the binary protocol specification
+    if (rc_int == LCB_ERR_DURABILITY_AMBIGUOUS) return error.DurabilityAmbiguous;
+    if (rc_int == LCB_ERR_DURABILITY_IMPOSSIBLE) return error.DurabilityImpossible;
+    if (rc_int == LCB_ERR_DURABILITY_SYNC_WRITE_IN_PROGRESS) return error.DurabilitySyncWriteInProgress;
     
-    // Subdoc errors (if defined)
-    if (rc_int >= 0xC0 and rc_int <= 0xCF) return error.SubdocPathNotFound;
+    // Subdocument errors - map specific error codes to their corresponding error types
+    if (rc_int == LCB_ERR_SUBDOC_PATH_NOT_FOUND) return error.SubdocPathNotFound;
+    if (rc_int == LCB_ERR_SUBDOC_PATH_EXISTS) return error.SubdocPathExists;
+    if (rc_int == LCB_ERR_SUBDOC_PATH_MISMATCH) return error.SubdocPathMismatch;
+    if (rc_int == LCB_ERR_SUBDOC_PATH_INVALID) return error.SubdocPathInvalid;
+    if (rc_int == LCB_ERR_SUBDOC_VALUE_TOO_DEEP) return error.SubdocValueTooDeep;
     
-    // Collection errors (if defined)
-    if (rc_int == 0x88) return error.CollectionNotFound;
-    if (rc_int == 0x8C) return error.ScopeNotFound;
+    // Handle any other subdocument errors in the range as generic subdocument errors
+    if (rc_int >= LCB_ERR_SUBDOC_RANGE_START and rc_int <= LCB_ERR_SUBDOC_RANGE_END) return error.SubdocPathNotFound;
+    
+    // Collection and scope errors - these are part of the collections protocol
+    if (rc_int == LCB_ERR_COLLECTION_NOT_FOUND) return error.CollectionNotFound;
+    if (rc_int == LCB_ERR_SCOPE_NOT_FOUND) return error.ScopeNotFound;
     
     return error.Unknown;
 }

@@ -3,9 +3,22 @@ const couchbase = @import("couchbase");
 
 /// Custom logging callback that writes to a file
 fn customLogCallback(entry: *const couchbase.LogEntry) void {
-    const file = std.fs.cwd().openFile("couchbase.log", .{ .mode = .write_only }) catch return;
+    // Try to open existing file for appending
+    const file = std.fs.cwd().openFile("couchbase.log", .{ 
+        .mode = .write_only,
+    }) catch |err| {
+        // If file doesn't exist, create it
+        if (err == error.FileNotFound) {
+            const file = std.fs.cwd().createFile("couchbase.log", .{}) catch return;
+            defer file.close();
+            file.writer().print("{}\n", .{entry}) catch {};
+        }
+        return;
+    };
     defer file.close();
     
+    // Seek to end of file to append
+    file.seekTo(file.getEndPos() catch return) catch return;
     file.writer().print("{}\n", .{entry}) catch {};
 }
 
