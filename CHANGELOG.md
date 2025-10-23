@@ -2,6 +2,66 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2025-10-18
+
+### Added
+- Advanced Connection Features for enterprise-grade connectivity
+- Connection Pooling with high-throughput connection management
+- Certificate Authentication with X.509 certificate-based authentication
+- Advanced DNS SRV with custom DNS resolution and caching
+- Connection Failover with automatic failover handling and circuit breaker pattern
+- Retry Logic with configurable retry policies and exponential backoff
+- Load Balancing strategies (round-robin, least-connections, weighted, random)
+- Health Check monitoring during failover scenarios
+- DNS over HTTPS (DoH) support for enhanced security
+- Certificate validation with custom validators and revocation checking
+- Memory-safe connection management with proper cleanup
+- Comprehensive error handling for all connection scenarios
+
+### New Types
+- `ConnectionPoolConfig` - Configuration for connection pooling
+- `CertificateAuthConfig` - X.509 certificate authentication configuration
+- `DnsSrvConfig` - DNS SRV resolution and caching configuration
+- `FailoverConfig` - Connection failover and load balancing configuration
+- `RetryPolicy` - Configurable retry policies with backoff strategies
+- `ConnectionPool` - High-performance connection pool management
+- `FailoverManager` - Automatic failover and load balancing
+- `RetryManager` - Retry logic with configurable policies
+
+### New Client Methods
+- Connection pooling integration in client initialization
+- Certificate authentication support in connection options
+- DNS SRV resolution and caching
+- Automatic failover handling
+- Retry logic for all operations
+- Load balancing across multiple endpoints
+- Health check monitoring
+
+### Examples
+- `examples/connection_features.zig` - Comprehensive connection features demo
+- Connection pooling configuration and management
+- Certificate authentication setup and validation
+- DNS SRV resolution and caching examples
+- Failover and load balancing demonstrations
+- Retry policy configuration and usage
+
+### Testing
+- `tests/connection_features_test.zig` - Comprehensive test suite
+- Connection pool configuration and cleanup tests
+- Certificate authentication validation tests
+- DNS SRV configuration and management tests
+- Failover configuration and delay calculation tests
+- Retry policy creation and delay calculation tests
+- Error handling and type validation tests
+- Memory management and cleanup verification
+
+### Documentation
+- Complete API reference for connection features
+- Usage examples and best practices
+- Migration guide from v0.5.4
+- Performance considerations and optimizations
+- Security guidelines for certificate authentication
+
 ## [0.5.4] - 2025-10-18
 
 ### Added
