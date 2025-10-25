@@ -1,6 +1,8 @@
 # Couchbase Zig Client
 
+
 A high-performance, memory-safe Zig client library for Couchbase Server, providing comprehensive access to Couchbase's key-value, query, analytics, and search capabilities.
+
 
 ## Features
 
@@ -90,8 +92,9 @@ A high-performance, memory-safe Zig client library for Couchbase Server, providi
 
 ### Build
 
+
 ```bash
-git clone https://github.com/your-org/couchbase-zig-client.git
+git clone https://github.com/thanos/couchbase-zig-client.git
 cd couchbase-zig-client
 zig build
 ```
@@ -314,6 +317,8 @@ Contributions are welcome! Please see our [Contributing Guidelines](CONTRIBUTING
 
 ### Support
 
+
 - **Documentation**: [Full API Documentation](docs/)
 - **Issues**: [GitHub Issues](https://github.com/your-org/couchbase-zig-client/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/your-org/couchbase-zig-client/discussions)
+
