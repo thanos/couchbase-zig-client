@@ -211,7 +211,7 @@ Add to `build.zig.zon`:
 ```zig
 .dependencies = .{
     .couchbase = .{
-        .url = "https://github.com/yourusername/couchbase-zig-client/archive/main.tar.gz",
+        .url = "https://github.com/thanos/couchbase-zig-client/archive/main.tar.gz",
     },
 },
 ```
