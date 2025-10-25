@@ -35,135 +35,8 @@ Zig wrapper for the libcouchbase C library.
 - Custom format specifiers for all binary protocol types
 - Memory-safe implementation with proper cleanup
 
-## Version 0.5.3 - Advanced N1QL Query Options
 
-### New Features
-- Query Profile support (off, phases, timings modes)
-- Readonly queries functionality
-- Client Context ID for query traceability
-- Scan capabilities configuration (scan cap and wait times)
-- Flex index support for flexible index usage
-- Consistency tokens for advanced consistency control
-- Performance tuning options (max parallelism, pipeline batch/cap)
-- Pretty print formatting and metrics control
-- Query context specification and raw JSON options
-- Query option chaining with fluent API
 
-### Technical Details
-- Direct libcouchbase C API integration
-- Enhanced QueryMetadata parsing with profile information
-- Comprehensive query options builder methods
-- Type-safe option handling with graceful degradation
-- Eight new test cases for advanced N1QL features
-
-## Version 0.5.0 - Transaction Functionality Implementation
-
-### New Features
-- Complete Transaction functionality for ACID compliance
-- Transaction management operations (begin, commit, rollback)
-- Transaction-aware KV operations (get, insert, upsert, replace, remove)
-- Transaction-aware counter operations (increment, decrement)
-- Transaction-aware advanced operations (touch, unlock, query)
-- Comprehensive transaction configuration and error handling
-- Automatic rollback on operation failure
-- Transaction test suite with 11 test cases
-
-### Technical Details
-- TransactionContext and TransactionResult data structures
-- TransactionConfig for comprehensive configuration
-- Transaction state management (active, committed, rolled_back, failed)
-- Memory-safe implementation with proper cleanup
-- Comprehensive error handling and rollback logic
-
-## Version 0.4.6 - Durability & Consistency Implementation
-
-### New Features
-- Complete Durability & Consistency functionality
-- Observe-based durability operations (observe, observeMulti, waitForDurability)
-- Mutation token management with automatic extraction
-- Enhanced store operations with full durability support
-- Support for all Couchbase durability levels
-- Comprehensive durability test suite with 13 test cases
-
-### Technical Details
-- ObserveDurability, ObserveResult, and ObserveOptions data structures
-- Mutation token creation, validation, and memory management
-- Timeout handling for durability operations
-- Error handling for durability-specific errors
-- Memory-safe implementation with proper cleanup
-
-## Version 0.4.5 - Spatial Views Implementation (Deprecated)
-
-### New Features
-- Spatial Views implementation for backward compatibility
-- spatialViewQuery() function with geospatial parameters
-- BoundingBox and SpatialRange data structures for geospatial queries
-- Comprehensive spatial view test suite with 8 test cases
-- Deprecation warnings and migration guidance to Full-Text Search (FTS)
-
-### Technical Details
-- Backward compatibility with older Couchbase Server versions
-- Automatic deprecation warnings for spatial view usage
-- Clear migration guidance to modern FTS geospatial queries
-- Comprehensive error handling for unsupported operations
-
-**Note**: Spatial views are deprecated in Couchbase Server 6.0+. Users are strongly encouraged to migrate to Full-Text Search (FTS) for geospatial queries.
-
-## Version 0.4.4 - Enhanced Batch Operations with Collections
-
-### New Features
-- Enhanced batch operations with collection support
-- New batch operation types: get_replica, lookup_in, mutate_in
-- Collection-aware batch operations via withCollection() method
-- Enhanced counter operations with direct delta parameter
-- Comprehensive enhanced batch test suite with 4 test cases
-- Support for all collection-aware operations in batch processing
-
-### Technical Details
-- Complete batch operation coverage for all collection-aware operations
-- Seamless integration with existing collection-aware operations
-- Improved memory management and error handling for batch operations
-- Backward compatibility maintained with clear migration path
-- Production-ready batch processing for multi-tenant applications
-
-## Version 0.4.3 - Collections & Scopes API Complete
-
-### New Features
-- Collections & Scopes API Phase 3: Advanced operations with collections
-- getReplicaWithCollection(): Collection-aware replica document retrieval
-- lookupInWithCollection(): Collection-aware subdocument lookup operations
-- mutateInWithCollection(): Collection-aware subdocument mutation operations
-- Comprehensive Advanced Operations Testing: 7 test cases covering replica and subdocument operations
-- Full Collections & Scopes API Coverage: 100% feature parity with C library
-
-### Technical Details
-- Phase 1: Core KV operations (upsert, insert, replace, remove, touch, counter, exists)
-- Phase 2: Lock operations (getAndLock, unlock)
-- Phase 3: Advanced operations (replica, subdocument lookup/mutation)
-- All operations maintain Zig idiomatic style with proper memory management
-- Full integration with libcouchbase C library collection functions
-
-## Version 0.4.1 - Collections & Scopes API Phase 1 & 2
-
-### New Features
-- Collections & Scopes API Phase 1 & 2: Core KV and lock operations with collections
-- Collection Type: Collection identifier with name, scope, and memory management
-- Scope Type: Scope identifier with name and memory management
-- CollectionManifest: Collection manifest management with search and filtering
-- CollectionManifestEntry: Individual collection metadata with UID and TTL
-- getWithCollection(): Collection-aware document retrieval
-- getCollectionManifest(): Collection manifest retrieval (simplified implementation)
-- Comprehensive Collection Testing: 11 test cases covering all collection scenarios
-
-## Version 0.4.0 - GET with Lock Operations
-
-### New Features
-- GET with Lock Operation: Complete implementation matching libcouchbase functionality
-- GetAndLockOptions: Comprehensive configuration for lock operations
-- UnlockOptions: Flexible unlock operation configuration
-- GetAndLockResult: Detailed result structure with lock time information
-- UnlockResult: Success status and CAS information for unlock operations
-- Comprehensive Lock Testing: 10 test cases covering all lock scenarios
 
 ## Features
 
@@ -673,3 +546,134 @@ MIT License
 - [libcouchbase Documentation](https://docs.couchbase.com/c-sdk/current/hello-world/start-using-sdk.html)
 
 (First beta release of the Couchbase Zig Client, an idiomatic Zig wrapper for libcouchbase. This release provides type-safe, memory-safe access to Couchbase Server with support for core key-value operations and N1QL queries.)
+
+
+## Version 0.5.3 - Advanced N1QL Query Options
+
+### New Features
+- Query Profile support (off, phases, timings modes)
+- Readonly queries functionality
+- Client Context ID for query traceability
+- Scan capabilities configuration (scan cap and wait times)
+- Flex index support for flexible index usage
+- Consistency tokens for advanced consistency control
+- Performance tuning options (max parallelism, pipeline batch/cap)
+- Pretty print formatting and metrics control
+- Query context specification and raw JSON options
+- Query option chaining with fluent API
+
+### Technical Details
+- Direct libcouchbase C API integration
+- Enhanced QueryMetadata parsing with profile information
+- Comprehensive query options builder methods
+- Type-safe option handling with graceful degradation
+- Eight new test cases for advanced N1QL features
+
+## Version 0.5.0 - Transaction Functionality Implementation
+
+### New Features
+- Complete Transaction functionality for ACID compliance
+- Transaction management operations (begin, commit, rollback)
+- Transaction-aware KV operations (get, insert, upsert, replace, remove)
+- Transaction-aware counter operations (increment, decrement)
+- Transaction-aware advanced operations (touch, unlock, query)
+- Comprehensive transaction configuration and error handling
+- Automatic rollback on operation failure
+- Transaction test suite with 11 test cases
+
+### Technical Details
+- TransactionContext and TransactionResult data structures
+- TransactionConfig for comprehensive configuration
+- Transaction state management (active, committed, rolled_back, failed)
+- Memory-safe implementation with proper cleanup
+- Comprehensive error handling and rollback logic
+
+## Version 0.4.6 - Durability & Consistency Implementation
+
+### New Features
+- Complete Durability & Consistency functionality
+- Observe-based durability operations (observe, observeMulti, waitForDurability)
+- Mutation token management with automatic extraction
+- Enhanced store operations with full durability support
+- Support for all Couchbase durability levels
+- Comprehensive durability test suite with 13 test cases
+
+### Technical Details
+- ObserveDurability, ObserveResult, and ObserveOptions data structures
+- Mutation token creation, validation, and memory management
+- Timeout handling for durability operations
+- Error handling for durability-specific errors
+- Memory-safe implementation with proper cleanup
+
+## Version 0.4.5 - Spatial Views Implementation (Deprecated)
+
+### New Features
+- Spatial Views implementation for backward compatibility
+- spatialViewQuery() function with geospatial parameters
+- BoundingBox and SpatialRange data structures for geospatial queries
+- Comprehensive spatial view test suite with 8 test cases
+- Deprecation warnings and migration guidance to Full-Text Search (FTS)
+
+### Technical Details
+- Backward compatibility with older Couchbase Server versions
+- Automatic deprecation warnings for spatial view usage
+- Clear migration guidance to modern FTS geospatial queries
+- Comprehensive error handling for unsupported operations
+
+**Note**: Spatial views are deprecated in Couchbase Server 6.0+. Users are strongly encouraged to migrate to Full-Text Search (FTS) for geospatial queries.
+
+## Version 0.4.4 - Enhanced Batch Operations with Collections
+
+### New Features
+- Enhanced batch operations with collection support
+- New batch operation types: get_replica, lookup_in, mutate_in
+- Collection-aware batch operations via withCollection() method
+- Enhanced counter operations with direct delta parameter
+- Comprehensive enhanced batch test suite with 4 test cases
+- Support for all collection-aware operations in batch processing
+
+### Technical Details
+- Complete batch operation coverage for all collection-aware operations
+- Seamless integration with existing collection-aware operations
+- Improved memory management and error handling for batch operations
+- Backward compatibility maintained with clear migration path
+- Production-ready batch processing for multi-tenant applications
+
+## Version 0.4.3 - Collections & Scopes API Complete
+
+### New Features
+- Collections & Scopes API Phase 3: Advanced operations with collections
+- getReplicaWithCollection(): Collection-aware replica document retrieval
+- lookupInWithCollection(): Collection-aware subdocument lookup operations
+- mutateInWithCollection(): Collection-aware subdocument mutation operations
+- Comprehensive Advanced Operations Testing: 7 test cases covering replica and subdocument operations
+- Full Collections & Scopes API Coverage: 100% feature parity with C library
+
+### Technical Details
+- Phase 1: Core KV operations (upsert, insert, replace, remove, touch, counter, exists)
+- Phase 2: Lock operations (getAndLock, unlock)
+- Phase 3: Advanced operations (replica, subdocument lookup/mutation)
+- All operations maintain Zig idiomatic style with proper memory management
+- Full integration with libcouchbase C library collection functions
+
+## Version 0.4.1 - Collections & Scopes API Phase 1 & 2
+
+### New Features
+- Collections & Scopes API Phase 1 & 2: Core KV and lock operations with collections
+- Collection Type: Collection identifier with name, scope, and memory management
+- Scope Type: Scope identifier with name and memory management
+- CollectionManifest: Collection manifest management with search and filtering
+- CollectionManifestEntry: Individual collection metadata with UID and TTL
+- getWithCollection(): Collection-aware document retrieval
+- getCollectionManifest(): Collection manifest retrieval (simplified implementation)
+- Comprehensive Collection Testing: 11 test cases covering all collection scenarios
+
+## Version 0.4.0 - GET with Lock Operations
+
+### New Features
+- GET with Lock Operation: Complete implementation matching libcouchbase functionality
+- GetAndLockOptions: Comprehensive configuration for lock operations
+- UnlockOptions: Flexible unlock operation configuration
+- GetAndLockResult: Detailed result structure with lock time information
+- UnlockResult: Success status and CAS information for unlock operations
+- Comprehensive Lock Testing: 10 test cases covering all lock scenarios
