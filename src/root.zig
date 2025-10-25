@@ -27,6 +27,17 @@ pub const BinaryOperationContext = @import("binary_protocol.zig").BinaryOperatio
 pub const DcpEvent = @import("binary_protocol.zig").DcpEvent;
 pub const DcpEventType = @import("binary_protocol.zig").DcpEventType;
 
+// Advanced Connection Features
+pub const connection_features = @import("connection_features.zig");
+pub const ConnectionPoolConfig = connection_features.ConnectionPoolConfig;
+pub const CertificateAuthConfig = connection_features.CertificateAuthConfig;
+pub const DnsSrvConfig = connection_features.DnsSrvConfig;
+pub const FailoverConfig = connection_features.FailoverConfig;
+pub const RetryPolicy = connection_features.RetryPolicy;
+pub const ConnectionPool = connection_features.ConnectionPool;
+pub const FailoverManager = connection_features.FailoverManager;
+pub const RetryManager = connection_features.RetryManager;
+
 // Re-export common types
 pub const Document = types.Document;
 pub const GetResult = operations.GetResult;

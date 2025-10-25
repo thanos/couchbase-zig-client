@@ -33,6 +33,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "diagnostics", .path = "examples/diagnostics.zig" },
         .{ .name = "error_handling_logging", .path = "examples/error_handling_logging.zig" },
         .{ .name = "binary_protocol", .path = "examples/binary_protocol.zig" },
+        .{ .name = "connection_features", .path = "examples/connection_features.zig" },
     };
 
     const example_step = b.step("examples", "Build all examples");
@@ -141,6 +142,15 @@ pub fn build(b: *std.Build) void {
     advanced_query_tests.root_module.addImport("couchbase", couchbase_module);
     advanced_query_tests.linkSystemLibrary("couchbase");
     advanced_query_tests.linkLibC();
+
+    const connection_features_tests = b.addTest(.{
+        .root_source_file = b.path("tests/connection_features_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    connection_features_tests.root_module.addImport("couchbase", couchbase_module);
+    connection_features_tests.linkSystemLibrary("couchbase");
+    connection_features_tests.linkLibC();
 
     const prepared_statement_tests = b.addTest(.{
         .root_source_file = b.path("tests/prepared_statement_test.zig"),
@@ -435,6 +445,11 @@ pub fn build(b: *std.Build) void {
     const binary_protocol_test_step = b.step("test-binary-protocol", "Run binary protocol tests");
     binary_protocol_test_step.dependOn(&run_binary_protocol_tests.step);
 
+    // Connection features tests
+    const run_connection_features_tests = b.addRunArtifact(connection_features_tests);
+    const connection_features_test_step = b.step("test-connection-features", "Run connection features tests");
+    connection_features_test_step.dependOn(&run_connection_features_tests.step);
+
     const all_tests_step = b.step("test-all", "Run all test suites");
     all_tests_step.dependOn(&run_lib_unit_tests.step);
     all_tests_step.dependOn(&run_unit_tests.step);
@@ -463,4 +478,5 @@ pub fn build(b: *std.Build) void {
     all_tests_step.dependOn(&run_diagnostics_unit_tests.step);
     all_tests_step.dependOn(&run_error_handling_logging_tests.step);
     all_tests_step.dependOn(&run_binary_protocol_tests.step);
+    all_tests_step.dependOn(&run_connection_features_tests.step);
 }

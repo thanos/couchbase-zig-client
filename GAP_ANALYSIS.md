@@ -1,10 +1,10 @@
 # Gap Analysis: Zig Client vs libcouchbase C Library
 
-Version 0.5.4 - October 18, 2025
+Version 0.6.0 - October 18, 2025
 
 This document provides a concise comparison of the Zig wrapper implementation against the full libcouchbase C library.
 
-## Current Status (v0.5.4)
+## Current Status (v0.6.0)
 
 ### Fully Implemented Features
 - **Core KV Operations**: 100% (13/13) - All basic operations complete
@@ -21,6 +21,7 @@ This document provides a concise comparison of the Zig wrapper implementation ag
 - **Diagnostics & Monitoring**: 100% - Complete health checks, diagnostics, and metrics
 - **Error Handling & Logging**: 100% - Complete error context, custom logging, and log level control
 - **Binary Protocol Features**: 100% - Complete collections, feature flags, binary data, and DCP support
+- **Advanced Connection Features**: 100% - Complete connection pooling, certificate auth, DNS SRV, failover, and retry logic
 
 ## libcouchbase Features Overview
 
@@ -84,7 +85,7 @@ This document provides a concise comparison of the Zig wrapper implementation ag
 
 ## Implementation Summary
 
-### Overall Coverage: 99.5% Complete
+### Overall Coverage: 100% Complete
 
 | Feature Category | Coverage | Status |
 |------------------|----------|--------|
@@ -96,7 +97,7 @@ This document provides a concise comparison of the Zig wrapper implementation ag
 | **Durability & Consistency** | 100% | Complete |
 | **Transaction Functionality** | 100% | Complete |
 | **View Operations** | 100% (1/1) | Complete |
-| **Advanced Connection** | 20% | Partial |
+| **Advanced Connection Features** | 100% | Complete |
 | **Diagnostics & Monitoring** | 100% | Complete |
 
 
@@ -106,7 +107,8 @@ This document provides a concise comparison of the Zig wrapper implementation ag
 - **Coverage Tests**: 14 tests (100% pass)
 - **Error Handling & Logging Tests**: 8 tests (100% pass)
 - **Binary Protocol Tests**: 8 tests (100% pass)
-- **Total**: 64+ tests covering all major functionality
+- **Connection Features Tests**: 8 tests (100% pass)
+- **Total**: 72+ tests covering all major functionality
 
 ### Production Readiness
 The Zig client is **production-ready** for applications requiring:

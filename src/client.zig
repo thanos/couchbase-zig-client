@@ -10,6 +10,7 @@ const types = @import("types.zig");
 const operations = @import("operations.zig");
 const transactions = @import("transactions.zig");
 const binary_protocol = @import("binary_protocol.zig");
+const connection_features = @import("connection_features.zig");
 
 /// Couchbase client
 pub const Client = struct {
@@ -19,6 +20,9 @@ pub const Client = struct {
     cache_config: types.PreparedStatementCache,
     logger: Logger,
     binary_protocol: binary_protocol.BinaryProtocol,
+    connection_pool: ?connection_features.ConnectionPool = null,
+    failover_manager: ?connection_features.FailoverManager = null,
+    retry_manager: ?connection_features.RetryManager = null,
 
     /// Connection string options
     pub const ConnectOptions = struct {
@@ -28,6 +32,11 @@ pub const Client = struct {
         bucket: ?[]const u8 = null,
         timeout_ms: u32 = 10000,
         logging_config: ?LoggingConfig = null,
+        connection_pool_config: ?connection_features.ConnectionPoolConfig = null,
+        certificate_auth_config: ?connection_features.CertificateAuthConfig = null,
+        dns_srv_config: ?connection_features.DnsSrvConfig = null,
+        failover_config: ?connection_features.FailoverConfig = null,
+        retry_policy: ?connection_features.RetryPolicy = null,
     };
 
     /// Create and connect to a Couchbase cluster
@@ -97,6 +106,27 @@ pub const Client = struct {
         // Initialize binary protocol
         const binary_protocol_instance = binary_protocol.BinaryProtocol.init(allocator);
 
+        // Initialize connection features
+        var connection_pool: ?connection_features.ConnectionPool = null;
+        var failover_manager: ?connection_features.FailoverManager = null;
+        var retry_manager: ?connection_features.RetryManager = null;
+
+        // Initialize connection pool if configured
+        if (options.connection_pool_config) |pool_config| {
+            connection_pool = connection_features.ConnectionPool.init(allocator, pool_config);
+        }
+
+        // Initialize failover manager if configured
+        if (options.failover_config) |failover_config| {
+            const endpoints = [_][]const u8{options.connection_string};
+            failover_manager = try connection_features.FailoverManager.init(allocator, failover_config, &endpoints);
+        }
+
+        // Initialize retry manager if configured
+        if (options.retry_policy) |retry_policy| {
+            retry_manager = connection_features.RetryManager.init(allocator, retry_policy);
+        }
+
         return Client{
             .instance = inst,
             .allocator = allocator,
@@ -104,6 +134,9 @@ pub const Client = struct {
             .cache_config = .{},
             .logger = logger,
             .binary_protocol = binary_protocol_instance,
+            .connection_pool = connection_pool,
+            .failover_manager = failover_manager,
+            .retry_manager = retry_manager,
         };
     }
 
@@ -112,6 +145,17 @@ pub const Client = struct {
         // Clean up prepared statements
         self.clearPreparedStatements();
         self.prepared_statements.deinit();
+        
+        // Clean up connection features
+        if (self.connection_pool) |*pool| {
+            pool.deinit();
+        }
+        if (self.failover_manager) |*failover| {
+            failover.deinit();
+        }
+        if (self.retry_manager) |*retry| {
+            retry.deinit();
+        }
         
         c.lcb_destroy(self.instance);
     }
