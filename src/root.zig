@@ -38,6 +38,11 @@ pub const ConnectionPool = connection_features.ConnectionPool;
 pub const FailoverManager = connection_features.FailoverManager;
 pub const RetryManager = connection_features.RetryManager;
 
+// Performance & Benchmarking
+pub const performance = @import("performance.zig");
+pub const BenchmarkResult = performance.BenchmarkResult;
+pub const BenchmarkConfig = performance.BenchmarkConfig;
+
 // Re-export common types
 pub const Document = types.Document;
 pub const GetResult = operations.GetResult;

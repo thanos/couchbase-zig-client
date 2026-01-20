@@ -362,6 +362,8 @@ pub const ConnectionPool = struct {
     connections: std.ArrayList(*c.lcb_INSTANCE),
     available_connections: std.ArrayList(*c.lcb_INSTANCE),
     connection_metadata: std.ArrayList(ConnectionMetadataEntry),
+    // Optimized: Use hash map for O(1) connection lookups
+    connection_map: std.AutoHashMap(*c.lcb_INSTANCE, usize), // connection -> metadata index
     allocator: std.mem.Allocator,
     mutex: std.Thread.Mutex = std.Thread.Mutex{},
 
@@ -383,6 +385,7 @@ pub const ConnectionPool = struct {
             .connections = std.ArrayList(*c.lcb_INSTANCE).init(allocator),
             .available_connections = std.ArrayList(*c.lcb_INSTANCE).init(allocator),
             .connection_metadata = std.ArrayList(ConnectionMetadataEntry).init(allocator),
+            .connection_map = std.AutoHashMap(*c.lcb_INSTANCE, usize).init(allocator),
             .allocator = allocator,
         };
     }
@@ -395,28 +398,56 @@ pub const ConnectionPool = struct {
         self.connections.deinit();
         self.available_connections.deinit();
         self.connection_metadata.deinit();
+        self.connection_map.deinit();
     }
 
-    /// Get a connection from the pool
+    /// Get a connection from the pool (optimized with better selection)
     pub fn borrowConnection(self: *ConnectionPool) !*c.lcb_INSTANCE {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        // Try to get an available connection
+        // Try to get an available connection (optimized: prefer least-used connections)
         if (self.available_connections.items.len > 0) {
-            const connection = self.available_connections.pop();
+            // Find connection with lowest use count (load balancing)
+            var best_idx: usize = 0;
+            var best_use_count: u32 = std.math.maxInt(u32);
             
-            // Validate connection if required
-            if (self.config.validate_on_borrow) {
-                if (self.validateConnection(connection)) {
-                    return connection;
-                } else {
-                    // Remove invalid connection
-                    self.removeConnection(connection);
+            for (self.available_connections.items, 0..) |conn, i| {
+                if (self.connection_map.get(conn)) |meta_idx| {
+                    const use_count = self.connection_metadata.items[meta_idx].metadata.use_count;
+                    if (use_count < best_use_count) {
+                        best_use_count = use_count;
+                        best_idx = i;
+                    }
                 }
-            } else {
-                return connection;
             }
+            
+            const connection = self.available_connections.swapRemove(best_idx);
+            
+            // Validate connection if required (optimized: skip validation if recently used)
+            if (self.config.validate_on_borrow) {
+                const now = @as(u64, @intCast(std.time.timestamp()));
+                if (self.connection_map.get(connection)) |meta_idx| {
+                    const last_used = self.connection_metadata.items[meta_idx].metadata.last_used;
+                    // Skip validation if used within last 5 seconds
+                    if (now - last_used > 5) {
+                        if (!self.validateConnection(connection)) {
+                            // Remove invalid connection
+                            self.removeConnection(connection);
+                            // Try again recursively
+                            return self.borrowConnection();
+                        }
+                    }
+                } else {
+                    // No metadata, validate
+                    if (!self.validateConnection(connection)) {
+                        self.removeConnection(connection);
+                        return self.borrowConnection();
+                    }
+                }
+            }
+            
+            return connection;
         }
 
         // Create new connection if under limit
@@ -427,7 +458,7 @@ pub const ConnectionPool = struct {
         return Error.ConnectionPoolExhausted;
     }
 
-    /// Return a connection to the pool
+    /// Return a connection to the pool (optimized with hash map lookup)
     pub fn returnConnection(self: *ConnectionPool, connection: *c.lcb_INSTANCE) void {
         self.mutex.lock();
         defer self.mutex.unlock();
@@ -440,16 +471,41 @@ pub const ConnectionPool = struct {
             }
         }
 
-        // Update metadata
-        for (self.connection_metadata.items) |*item| {
-            if (item.connection == connection) {
-                item.metadata.last_used = @as(u64, @intCast(std.time.timestamp()));
-                item.metadata.use_count += 1;
-                break;
-            }
+        // Update metadata (optimized: O(1) lookup using hash map)
+        if (self.connection_map.get(connection)) |meta_idx| {
+            self.connection_metadata.items[meta_idx].metadata.last_used = @as(u64, @intCast(std.time.timestamp()));
+            self.connection_metadata.items[meta_idx].metadata.use_count += 1;
+        } else {
+            // Connection not in map, add it
+            const now = @as(u64, @intCast(std.time.timestamp()));
+            const entry = ConnectionMetadataEntry{
+                .connection = connection,
+                .metadata = .{
+                    .created_at = now,
+                    .last_used = now,
+                    .is_valid = true,
+                    .use_count = 1,
+                },
+            };
+            self.connection_metadata.append(entry) catch {
+                self.removeConnection(connection);
+                return;
+            };
+            self.connection_map.put(connection, self.connection_metadata.items.len - 1) catch {
+                _ = self.connection_metadata.pop();
+                self.removeConnection(connection);
+                return;
+            };
         }
 
-        // Return to available pool
+        // Return to available pool (optimized: check if already in pool)
+        for (self.available_connections.items) |conn| {
+            if (conn == connection) {
+                // Already in pool, don't add again
+                return;
+            }
+        }
+        
         self.available_connections.append(connection) catch {
             // If we can't add to available pool, remove the connection
             self.removeConnection(connection);
@@ -473,7 +529,7 @@ pub const ConnectionPool = struct {
         return true;
     }
 
-    /// Remove a connection from the pool
+    /// Remove a connection from the pool (optimized with hash map)
     fn removeConnection(self: *ConnectionPool, connection: *c.lcb_INSTANCE) void {
         // Remove from connections list
         for (self.connections.items, 0..) |conn, i| {
@@ -491,13 +547,19 @@ pub const ConnectionPool = struct {
             }
         }
 
-        // Remove metadata
-        for (self.connection_metadata.items, 0..) |item, i| {
-            if (item.connection == connection) {
-                _ = self.connection_metadata.swapRemove(i);
-                break;
+        // Remove metadata (optimized: O(1) lookup)
+        if (self.connection_map.get(connection)) |meta_idx| {
+            _ = self.connection_map.remove(connection);
+            // If not last item, update map for swapped item
+            if (meta_idx < self.connection_metadata.items.len - 1) {
+                const swapped_conn = self.connection_metadata.items[self.connection_metadata.items.len - 1].connection;
+                _ = self.connection_map.put(swapped_conn, meta_idx) catch {};
             }
+            _ = self.connection_metadata.swapRemove(meta_idx);
         }
+        
+        // Destroy the connection
+        c.lcb_destroy(connection);
 
         // Destroy connection
         c.lcb_destroy(connection);

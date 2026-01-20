@@ -34,6 +34,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "error_handling_logging", .path = "examples/error_handling_logging.zig" },
         .{ .name = "binary_protocol", .path = "examples/binary_protocol.zig" },
         .{ .name = "connection_features", .path = "examples/connection_features.zig" },
+        .{ .name = "performance_benchmark", .path = "examples/performance_benchmark.zig" },
     };
 
     const example_step = b.step("examples", "Build all examples");
