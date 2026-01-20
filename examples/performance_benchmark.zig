@@ -1,13 +1,44 @@
 const std = @import("std");
 const couchbase = @import("couchbase");
+const zbench = @import("zbench");
+
+// Global state for benchmarks (zBench requires function pointers)
+var g_client: ?*couchbase.Client = null;
+var g_key: []const u8 = "";
+var g_value: []const u8 = "";
+var g_query: []const u8 = "";
+
+fn benchmarkGet(allocator: std.mem.Allocator) void {
+    _ = allocator;
+    if (g_client) |client| {
+        if (couchbase.operations.get(client, g_key)) |result| {
+            result.deinit();
+        } else |_| {}
+    }
+}
+
+fn benchmarkUpsert(allocator: std.mem.Allocator) void {
+    _ = allocator;
+    if (g_client) |client| {
+        _ = couchbase.operations.store(client, g_key, g_value, .upsert, .{}) catch {};
+    }
+}
+
+fn benchmarkQuery(allocator: std.mem.Allocator) void {
+    if (g_client) |client| {
+        if (couchbase.operations.query(client, allocator, g_query, .{})) |result| {
+            result.deinit();
+        } else |_| {}
+    }
+}
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    std.debug.print("Couchbase Zig Client - Performance Benchmark\n", .{});
-    std.debug.print("============================================\n\n", .{});
+    std.debug.print("Couchbase Zig Client - Performance Benchmark (using zBench)\n", .{});
+    std.debug.print("===========================================================\n\n", .{});
 
     // Connect to Couchbase
     const host = std.process.getEnvVarOwned(allocator, "COUCHBASE_HOST") catch try allocator.dupe(u8, "couchbase://localhost");
@@ -32,42 +63,36 @@ pub fn main() !void {
     // Prepare test data
     const test_key = "benchmark:test:key";
     const test_value = "{\"test\":\"data\",\"timestamp\":1234567890,\"value\":\"benchmark\"}";
+    const test_query = "SELECT * FROM `default` WHERE test = 'data' LIMIT 10";
 
     // Store test document
     _ = try client.upsert(test_key, test_value, .{});
 
-    // Benchmark configuration
-    const config = couchbase.BenchmarkConfig{
-        .iterations = 1000,
-        .warmup_iterations = 100,
-        .enable_memory_tracking = true,
-        .print_progress = true,
-    };
+    // Set global state for benchmarks
+    g_client = &client;
+    g_key = test_key;
+    g_value = test_value;
+    g_query = test_query;
 
-    std.debug.print("Running GET benchmark...\n", .{});
-    const get_result = try couchbase.performance.benchmarkGet(&client, allocator, config, test_key);
-    std.debug.print("{}\n", .{get_result});
+    // Initialize zBench with proper I/O setup
+    const stdout = std.io.getStdOut();
+    const writer = stdout.writer();
 
-    std.debug.print("\nRunning UPSERT benchmark...\n", .{});
-    const upsert_result = try couchbase.performance.benchmarkUpsert(&client, allocator, config, test_key, test_value);
-    std.debug.print("{}\n", .{upsert_result});
-
-    std.debug.print("\nRunning QUERY benchmark...\n", .{});
-    const query = "SELECT * FROM `default` WHERE test = 'data' LIMIT 10";
-    const query_result = try couchbase.performance.benchmarkQuery(&client, allocator, config, query);
-    std.debug.print("{}\n", .{query_result});
-
-    std.debug.print("\nBenchmark Summary:\n", .{});
-    std.debug.print("  GET:     {d:.2}μs avg, {d:.2} ops/sec\n", .{
-        @as(f64, @floatFromInt(get_result.avg_time_ns)) / 1000.0,
-        get_result.throughput_ops_per_sec,
+    var bench = zbench.Benchmark.init(allocator, .{
+        .max_iterations = 16384,
+        .time_budget_ns = 2_000_000_000, // 2 seconds
+        .track_allocations = false,
     });
-    std.debug.print("  UPSERT:  {d:.2}μs avg, {d:.2} ops/sec\n", .{
-        @as(f64, @floatFromInt(upsert_result.avg_time_ns)) / 1000.0,
-        upsert_result.throughput_ops_per_sec,
-    });
-    std.debug.print("  QUERY:   {d:.2}μs avg, {d:.2} ops/sec\n", .{
-        @as(f64, @floatFromInt(query_result.avg_time_ns)) / 1000.0,
-        query_result.throughput_ops_per_sec,
-    });
+    defer bench.deinit();
+
+    // Add benchmarks
+    try bench.add("GET", benchmarkGet, .{});
+    try bench.add("UPSERT", benchmarkUpsert, .{});
+    try bench.add("QUERY", benchmarkQuery, .{});
+
+    // Run all benchmarks
+    std.debug.print("Running benchmarks...\n\n", .{});
+    try bench.run(writer);
+
+    std.debug.print("\nBenchmark complete!\n", .{});
 }

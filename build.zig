@@ -4,12 +4,20 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    // Fetch zBench dependency
+    const zbench_dep = b.dependency("zbench", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    const zbench_module = zbench_dep.module("zbench");
+
     // Module for the library
     const couchbase_module = b.addModule("couchbase", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
+    couchbase_module.addImport("zbench", zbench_module);
 
     // Link libcouchbase
     couchbase_module.linkSystemLibrary("couchbase", .{});
@@ -47,6 +55,10 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         });
         exe.root_module.addImport("couchbase", couchbase_module);
+        // Add zbench import for performance_benchmark example
+        if (std.mem.eql(u8, example.name, "performance_benchmark")) {
+            exe.root_module.addImport("zbench", zbench_module);
+        }
         exe.linkSystemLibrary("couchbase");
         exe.linkLibC();
         

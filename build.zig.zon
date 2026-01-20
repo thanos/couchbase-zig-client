@@ -1,10 +1,15 @@
 .{
     .name = .couchbase,
-    .version = "0.5.1",
+    .version = "0.6.1",
     .minimum_zig_version = "0.11.0",
     .fingerprint = 0xf2ae8451617f5d98,
     
-    .dependencies = .{},
+    .dependencies = .{
+        .zbench = .{
+            .url = "https://github.com/hendriknielaender/zBench/archive/refs/heads/main.tar.gz",
+            .hash = "",
+        },
+    },
     
     .paths = .{
         "build.zig",
