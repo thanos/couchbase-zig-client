@@ -19,7 +19,7 @@ fn getTestClient(allocator: std.mem.Allocator) !Client {
         .connection_string = cfg.connection_string,
         .username = cfg.username,
         .password = cfg.password,
-        .bucket = cfg.bucket,
+        .bucket = "gamesim-sample", // Use gamesim-sample bucket for transaction tests
         .timeout_ms = cfg.timeout_ms,
     });
 }
@@ -158,9 +158,7 @@ test "transaction - query operations" {
             .read_only = true,
         },
     };
-    const cfg = couchbase.getTestConfig();
-    const query_str = try std.fmt.allocPrint(allocator, "SELECT * FROM `{s}` LIMIT 1", .{cfg.bucket});
-    defer allocator.free(query_str);
+    const query_str = "SELECT * FROM `gamesim-sample` LIMIT 1";
     try client.addQueryOperation(&ctx, query_str, query_options);
 
     // Commit transaction
