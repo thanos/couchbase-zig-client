@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("c.zig");
+const c = @import("c.zig").lcb;
 const ErrorContext = @import("error_context.zig").ErrorContext;
 const LogLevel = @import("error_context.zig").LogLevel;
 
@@ -104,7 +104,8 @@ pub const LogCallback = *const fn (entry: *const LogEntry) void;
 
 /// Default logging callback that prints to stderr
 pub fn defaultLogCallback(entry: *const LogEntry) void {
-    std.debug.print("{}\n", .{entry});
+    // In Zig 0.15+, printing a struct with "{}" is ambiguous; use "{any}" explicitly.
+    std.debug.print("{any}\n", .{entry});
 }
 
 /// Logging configuration

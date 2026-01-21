@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("c.zig");
+const c = @import("c.zig").lcb;
 
 /// Log levels for the Couchbase client
 pub const LogLevel = enum(u8) {
@@ -222,6 +222,8 @@ pub fn fromStatusCode(rc: c.lcb_STATUS) Error!void {
     // Map known error codes (values from libcouchbase)
     if (rc == c.LCB_ERR_AUTHENTICATION_FAILURE) return error.AuthenticationFailed;
     if (rc == c.LCB_ERR_BUSY) return error.TemporaryFailure;
+    if (rc == c.LCB_ERR_CONNECTION_REFUSED) return error.CannotConnect;
+    if (rc == c.LCB_ERR_NETWORK) return error.NetworkError;
     if (rc == c.LCB_ERR_INVALID_ARGUMENT) return error.InvalidArgument;
     if (rc == c.LCB_ERR_NO_MEMORY) return error.OutOfMemory;
     if (rc == c.LCB_ERR_GENERIC) return error.GenericError;

@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-01-20
+
+### Changed
+- Upgraded to Zig 0.15.2 compatibility
+- Minimum Zig version requirement changed from 0.11.0 to 0.15.2
+- Build system migrated to Zig 0.15.2 API (`b.addLibrary()`, `root_module`)
+- All `std.ArrayList` usage migrated to `std.array_list.Managed`
+- Updated I/O API usage (`std.fs.File.stdout()` with buffer and interface)
+- Updated JSON API usage (`std.json.stringify()` with temporary buffers)
+- Updated time API usage (`std.Thread.sleep()` instead of `std.time.sleep()`)
+- Updated format API usage (`std.fmt.allocPrint()` with manual null termination)
+- C bindings restructured (`pub const lcb = @cImport(...)`)
+- All callback calling conventions updated (`callconv(.c)` lowercase)
+- Connection string handling: bucket now specified separately via `lcb_createopts_bucket()`
+- All operations now use proper timeout handling with `waitForCompletion()` function
+- Default test configuration updated (username: `admin`, bucket: `test`)
+
+### Fixed
+- Fixed memory leaks in get-and-lock operations
+- Fixed infinite hangs in operations by replacing blocking `lcb_wait()` calls
+- Fixed `LCB_ERR_BUCKET_NOT_FOUND` errors by using proper bucket specification API
+- Fixed connection refused error mapping
+- Fixed query tests to use correct bucket name from test config
+- Fixed concurrent lock test timing issues
+- Fixed unlock CAS expectations for single-node setup compatibility
+
+### Technical Details
+- 27 files modified (23 source/test files, 4 configuration files)
+- Build system completely rewritten for Zig 0.15.2 compatibility
+- All standard library API migrations completed
+- All tests updated and verified (18/18 integration tests passing, 10/10 get-and-lock tests passing)
+- No performance regressions observed
+
+### Migration Required
+- Users must upgrade to Zig 0.15.2 or later
+- Connection strings must be updated to separate bucket specification
+- Code directly using C bindings must update import paths
+- Library contributors must migrate ArrayList usage to array_list.Managed
+
 ## [0.6.0] - 2025-10-18
 
 ### Added

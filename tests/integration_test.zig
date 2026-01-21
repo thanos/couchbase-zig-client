@@ -237,7 +237,7 @@ test "expiry" {
     get_result1.deinit();
 
     // Wait for expiry
-    std.time.sleep(3 * std.time.ns_per_s);
+    std.Thread.sleep(3 * std.time.ns_per_s);
 
     // Should be gone
     const get_result2 = client.get(key);
@@ -297,8 +297,10 @@ test "query: create and select documents" {
     _ = try client.upsert(doc2_key, doc2, .{});
     _ = try client.upsert(doc3_key, doc3, .{});
 
-    // Query for documents
-    const query = "SELECT name, age FROM `default` WHERE type = 'test_query' ORDER BY age";
+    // Query for documents (use the bucket from test config)
+    const test_config = couchbase.getTestConfig();
+    const query = try std.fmt.allocPrint(testing.allocator, "SELECT name, age FROM `{s}` WHERE type = 'test_query' ORDER BY age", .{test_config.bucket});
+    defer testing.allocator.free(query);
     var result = client.query(testing.allocator, query, .{
         .consistency = .request_plus,
     }) catch |err| {

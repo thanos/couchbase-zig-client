@@ -1,16 +1,16 @@
 .{
     .name = .couchbase,
-    .version = "0.6.1",
-    .minimum_zig_version = "0.11.0",
+    .version = "0.7.0",
+    .minimum_zig_version = "0.15.2",
     .fingerprint = 0xf2ae8451617f5d98,
-    
+
     .dependencies = .{
         .zbench = .{
-            .url = "https://github.com/hendriknielaender/zBench/archive/refs/heads/main.tar.gz",
-            .hash = "",
+            .url = "https://github.com/thanos/zBench/archive/refs/heads/0.14-0.15-compatibility.tar.gz",
+            .hash = "zbench-0.11.2-YTdc70wqAQB1LfIWRmhxDdum9893T7qsLGWMbqBOyZes",
         },
     },
-    
+
     .paths = .{
         "build.zig",
         "build.zig.zon",

@@ -5,7 +5,7 @@ This document describes how to run integration tests against a local Couchbase s
 ## Prerequisites
 
 1. **Couchbase Server**: Running locally (Docker or native installation)
-2. **Zig**: Version 0.11.0+ (tested with 0.14.0)
+2. **Zig**: Version 0.15.2 or later
 3. **libcouchbase**: Version 3.x (tested with 3.3.18)
 
 ## Quick Start
@@ -16,9 +16,9 @@ If you already have Couchbase running locally:
 ```bash
 # Set environment variables
 export COUCHBASE_HOST="couchbase://127.0.0.1"
-export COUCHBASE_USER="tester"
+export COUCHBASE_USER="admin"
 export COUCHBASE_PASSWORD="csfb2010"
-export COUCHBASE_BUCKET="default"
+export COUCHBASE_BUCKET="test"
 
 # Run integration tests
 zig build test-integration
@@ -39,15 +39,15 @@ sleep 30
 
 # Configure server via web UI
 open http://localhost:8091
-# - Create bucket "default"
-# - Create user "tester" with password "csfb2010"
-# - Grant full access to "default" bucket
+# - Create bucket "test"
+# - Create user "admin" with password "csfb2010"
+# - Grant full access to "test" bucket
 
 # Run tests
 export COUCHBASE_HOST="couchbase://127.0.0.1"
-export COUCHBASE_USER="tester"
+export COUCHBASE_USER="admin"
 export COUCHBASE_PASSWORD="csfb2010"
-export COUCHBASE_BUCKET="default"
+export COUCHBASE_BUCKET="test"
 zig build test-integration
 ```
 

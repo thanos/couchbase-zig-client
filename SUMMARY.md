@@ -7,7 +7,7 @@ This Zig wrapper for libcouchbase has been successfully implemented with compreh
 ### Core Components
 
 1. **Build System** (`build.zig`, `build.zig.zon`)
-   - Zig 0.11.0+ compatible build configuration
+   - Zig 0.15.2+ compatible build configuration
    - System library linking for libcouchbase
    - Example programs build targets
    - Test framework integration

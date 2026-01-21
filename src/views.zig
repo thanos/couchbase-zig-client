@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("c.zig");
+const c = @import("c.zig").lcb;
 const Error = @import("error.zig").Error;
 const fromStatusCode = @import("error.zig").fromStatusCode;
 const Client = @import("client.zig").Client;
@@ -71,7 +71,7 @@ pub const ViewStale = enum(c_uint) {
 };
 
 const ViewContext = struct {
-    rows: std.ArrayList([]const u8),
+    rows: std.array_list.Managed([]const u8),
     meta: ?[]const u8 = null,
     err: ?Error = null,
     done: bool = false,
@@ -87,7 +87,7 @@ pub fn viewQuery(
     options: ViewOptions,
 ) Error!ViewResult {
     var ctx = ViewContext{
-        .rows = std.ArrayList([]const u8).init(allocator),
+        .rows = std.array_list.Managed([]const u8).init(allocator),
         .allocator = allocator,
     };
 
@@ -99,7 +99,7 @@ pub fn viewQuery(
     _ = c.lcb_cmdview_view_name(cmd, view_name.ptr, view_name.len);
 
     // Build query options string
-    var options_list = std.ArrayList(u8).init(allocator);
+    var options_list = std.array_list.Managed(u8).init(allocator);
     defer options_list.deinit();
 
     var first = true;
@@ -166,7 +166,7 @@ pub fn viewQuery(
     }
 
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPVIEW) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPVIEW) callconv(.c) void {
             _ = instance;
             _ = cbtype;
 
@@ -241,7 +241,7 @@ pub fn spatialViewQuery(
     std.debug.print("Warning: Spatial views are deprecated in Couchbase Server 6.0+. Consider using Full-Text Search (FTS) for geospatial queries.\n", .{});
     
     var ctx = ViewContext{
-        .rows = std.ArrayList([]const u8).init(allocator),
+        .rows = std.array_list.Managed([]const u8).init(allocator),
         .allocator = allocator,
     };
 
@@ -253,7 +253,7 @@ pub fn spatialViewQuery(
     _ = c.lcb_cmdview_view_name(cmd, view_name.ptr, view_name.len);
 
     // Build spatial query options string
-    var options_list = std.ArrayList(u8).init(allocator);
+    var options_list = std.array_list.Managed(u8).init(allocator);
     defer options_list.deinit();
 
     var first = true;
@@ -306,7 +306,7 @@ pub fn spatialViewQuery(
     }
 
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPVIEW) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPVIEW) callconv(.c) void {
             _ = instance;
             _ = cbtype;
 

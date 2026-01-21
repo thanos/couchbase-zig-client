@@ -8,12 +8,29 @@ pub fn main() !void {
 
     std.debug.print("Connecting to Couchbase...\n", .{});
 
+    // Get connection details from environment or use defaults
+    const host = std.process.getEnvVarOwned(allocator, "COUCHBASE_HOST") catch "127.0.0.1";
+    defer if (host.len > 0) allocator.free(host);
+    const username = std.process.getEnvVarOwned(allocator, "COUCHBASE_USER") catch "admin";
+    defer if (username.len > 0) allocator.free(username);
+    const password = std.process.getEnvVarOwned(allocator, "COUCHBASE_PASSWORD") catch "csfb2010";
+    defer if (password.len > 0) allocator.free(password);
+    const bucket = std.process.getEnvVarOwned(allocator, "COUCHBASE_BUCKET") catch "test";
+    defer if (bucket.len > 0) allocator.free(bucket);
+
+    // Build connection string
+    const connection_string = if (std.mem.indexOf(u8, host, "://") == null)
+        try std.fmt.allocPrint(allocator, "couchbase://{s}", .{host})
+    else
+        try allocator.dupe(u8, host);
+    defer allocator.free(connection_string);
+
     // Connect to Couchbase cluster
     var client = try couchbase.Client.connect(allocator, .{
-        .connection_string = "couchbase://localhost",
-        .username = "Administrator",
-        .password = "password",
-        .bucket = "default",
+        .connection_string = connection_string,
+        .username = username,
+        .password = password,
+        .bucket = bucket,
     });
     defer client.disconnect();
 

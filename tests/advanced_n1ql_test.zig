@@ -1,21 +1,24 @@
 const std = @import("std");
 const couchbase = @import("couchbase");
 
-const TEST_HOST = "http://127.0.0.1:8091";
-const TEST_USER = "tester";
-const TEST_PASSWORD = "csfb2010";
-const TEST_BUCKET = "default";
+
+fn getTestClient(allocator: std.mem.Allocator) !couchbase.Client {
+    const cfg = couchbase.getTestConfig();
+    return try couchbase.Client.connect(allocator, .{
+        .connection_string = cfg.connection_string,
+        .username = cfg.username,
+        .password = cfg.password,
+        .bucket = cfg.bucket,
+        .timeout_ms = cfg.timeout_ms,
+    });
+}
 
 test "advanced n1ql - query profile timings" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var client = try couchbase.Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Test query with timings profile
@@ -35,11 +38,7 @@ test "advanced n1ql - readonly queries" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var client = try couchbase.Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Test readonly query
@@ -59,11 +58,7 @@ test "advanced n1ql - client context id" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var client = try couchbase.Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Test query with client context ID
@@ -83,11 +78,7 @@ test "advanced n1ql - scan capabilities" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var client = try couchbase.Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Test query with scan capabilities
@@ -107,11 +98,7 @@ test "advanced n1ql - flex index support" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var client = try couchbase.Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Test query with flex index
@@ -131,11 +118,7 @@ test "advanced n1ql - performance tuning" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var client = try couchbase.Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Test query with performance tuning
@@ -155,11 +138,7 @@ test "advanced n1ql - pretty printing" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var client = try couchbase.Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Test query with pretty printing
@@ -179,11 +158,7 @@ test "advanced n1ql - without metrics" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var client = try couchbase.Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Test query without metrics

@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("c.zig");
+const c = @import("c.zig").lcb;
 
 // Forward declaration to avoid circular dependency
 const Client = @import("client.zig").Client;
@@ -154,8 +154,8 @@ pub const TransactionOperationOptions = struct {
 pub const TransactionContext = struct {
     id: u64,
     state: TransactionState,
-    operations: std.ArrayList(TransactionOperation),
-    rollback_operations: std.ArrayList(TransactionOperation),
+    operations: std.array_list.Managed(TransactionOperation),
+    rollback_operations: std.array_list.Managed(TransactionOperation),
     allocator: std.mem.Allocator,
     client: *Client,
     
@@ -179,8 +179,8 @@ pub const TransactionContext = struct {
         return TransactionContext{
             .id = id,
             .state = .active,
-            .operations = std.ArrayList(TransactionOperation).init(allocator),
-            .rollback_operations = std.ArrayList(TransactionOperation).init(allocator),
+            .operations = std.array_list.Managed(TransactionOperation).init(allocator),
+            .rollback_operations = std.array_list.Managed(TransactionOperation).init(allocator),
             .allocator = allocator,
             .client = client,
         };
@@ -481,7 +481,10 @@ pub const QueryMetadata = struct {
         if (parsed.value.object.get("metrics")) |metrics_val| {
             const metrics = try self.allocator.create(QueryMetrics);
             metrics.allocator = self.allocator;
-            try metrics.parse(std.json.stringifyAlloc(self.allocator, metrics_val, .{}) catch return);
+            // Zig 0.15 removed std.json.stringifyAlloc; use json formatter and allocPrint.
+            const metrics_json = std.fmt.allocPrint(self.allocator, "{f}", .{std.json.fmt(metrics_val, .{})}) catch return;
+            defer self.allocator.free(metrics_json);
+            try metrics.parse(metrics_json);
             self.metrics = metrics;
         }
         
@@ -683,7 +686,7 @@ pub const CollectionManifest = struct {
     
     /// Get all collections in a scope
     pub fn getCollectionsInScope(self: *const CollectionManifest, scope: []const u8, allocator: std.mem.Allocator) ![]CollectionManifestEntry {
-        var result = std.ArrayList(CollectionManifestEntry).init(allocator);
+        var result = std.array_list.Managed(CollectionManifestEntry).init(allocator);
         defer result.deinit();
         
         for (self.collections) |entry| {
@@ -963,7 +966,7 @@ pub const BatchOperationResult = struct {
     
     /// Get results by operation type
     pub fn getResultsByType(self: *const BatchOperationResult, operation_type: BatchOperationType, allocator: std.mem.Allocator) ![]BatchResult {
-        var filtered = std.ArrayList(BatchResult).init(allocator);
+        var filtered = std.array_list.Managed(BatchResult).init(allocator);
         defer filtered.deinit();
         
         for (self.results) |result| {
@@ -977,7 +980,7 @@ pub const BatchOperationResult = struct {
     
     /// Get successful results only
     pub fn getSuccessfulResults(self: *const BatchOperationResult, allocator: std.mem.Allocator) ![]BatchResult {
-        var successful = std.ArrayList(BatchResult).init(allocator);
+        var successful = std.array_list.Managed(BatchResult).init(allocator);
         defer successful.deinit();
         
         for (self.results) |result| {
@@ -991,7 +994,7 @@ pub const BatchOperationResult = struct {
     
     /// Get failed results only
     pub fn getFailedResults(self: *const BatchOperationResult, allocator: std.mem.Allocator) ![]BatchResult {
-        var failed = std.ArrayList(BatchResult).init(allocator);
+        var failed = std.array_list.Managed(BatchResult).init(allocator);
         defer failed.deinit();
         
         for (self.results) |result| {

@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("c.zig");
+const c = @import("c.zig").lcb;
 
 /// Binary protocol feature flags
 pub const FeatureFlags = struct {

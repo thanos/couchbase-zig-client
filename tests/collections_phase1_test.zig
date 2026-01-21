@@ -101,7 +101,7 @@ test "collection-aware touch operation" {
     try testing.expect(touch_result.cas > 0);
 
     // Wait for expiry
-    std.time.sleep(std.time.ns_per_s * 2);
+    std.Thread.sleep(std.time.ns_per_s * 2);
 
     // Verify document expired
     try testing.expectError(couchbase.Error.DocumentNotFound, client.getWithCollection(key, collection));

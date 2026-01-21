@@ -34,7 +34,7 @@ test "ProtocolVersion creation and formatting" {
     try std.testing.expectEqual(@as(u8, 1), version.patch);
     
     // Test formatting
-    var buffer = std.ArrayList(u8).init(std.testing.allocator);
+    var buffer = std.array_list.Managed(u8).init(std.testing.allocator);
     defer buffer.deinit();
     try version.format("", .{}, buffer.writer());
     

@@ -13,11 +13,16 @@ const StoreOptions = couchbase.operations.StoreOptions;
 const RemoveOptions = couchbase.operations.RemoveOptions;
 const QueryOptions = couchbase.operations.QueryOptions;
 
-// Test configuration
-const TEST_HOST = "couchbase://127.0.0.1";
-const TEST_USER = "tester";
-const TEST_PASSWORD = "csfb2010";
-const TEST_BUCKET = "default";
+fn getTestClient(allocator: std.mem.Allocator) !Client {
+    const cfg = couchbase.getTestConfig();
+    return try Client.connect(allocator, .{
+        .connection_string = cfg.connection_string,
+        .username = cfg.username,
+        .password = cfg.password,
+        .bucket = cfg.bucket,
+        .timeout_ms = cfg.timeout_ms,
+    });
+}
 
 test "transaction - basic transaction lifecycle" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -25,12 +30,7 @@ test "transaction - basic transaction lifecycle" {
     const allocator = gpa.allocator();
 
     // Connect to Couchbase
-    var client = try Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-        .bucket = TEST_BUCKET,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Begin transaction
@@ -63,12 +63,7 @@ test "transaction - rollback transaction" {
     const allocator = gpa.allocator();
 
     // Connect to Couchbase
-    var client = try Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-        .bucket = TEST_BUCKET,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Begin transaction
@@ -93,12 +88,7 @@ test "transaction - counter operations" {
     const allocator = gpa.allocator();
 
     // Connect to Couchbase
-    var client = try Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-        .bucket = TEST_BUCKET,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Begin transaction
@@ -124,12 +114,7 @@ test "transaction - touch and unlock operations" {
     const allocator = gpa.allocator();
 
     // Connect to Couchbase
-    var client = try Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-        .bucket = TEST_BUCKET,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // First, create and lock a document
@@ -159,12 +144,7 @@ test "transaction - query operations" {
     const allocator = gpa.allocator();
 
     // Connect to Couchbase
-    var client = try Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-        .bucket = TEST_BUCKET,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Begin transaction
@@ -178,7 +158,8 @@ test "transaction - query operations" {
             .read_only = true,
         },
     };
-    const query_str = try std.fmt.allocPrint(allocator, "SELECT * FROM `{s}` LIMIT 1", .{TEST_BUCKET});
+    const cfg = couchbase.getTestConfig();
+    const query_str = try std.fmt.allocPrint(allocator, "SELECT * FROM `{s}` LIMIT 1", .{cfg.bucket});
     defer allocator.free(query_str);
     try client.addQueryOperation(&ctx, query_str, query_options);
 
@@ -197,12 +178,7 @@ test "transaction - error handling" {
     const allocator = gpa.allocator();
 
     // Connect to Couchbase
-    var client = try Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-        .bucket = TEST_BUCKET,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Begin transaction
@@ -231,12 +207,7 @@ test "transaction - auto rollback on failure" {
     const allocator = gpa.allocator();
 
     // Connect to Couchbase
-    var client = try Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-        .bucket = TEST_BUCKET,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Begin transaction
@@ -266,12 +237,7 @@ test "transaction - transaction state management" {
     const allocator = gpa.allocator();
 
     // Connect to Couchbase
-    var client = try Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-        .bucket = TEST_BUCKET,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Begin transaction
@@ -296,12 +262,7 @@ test "transaction - complex multi-operation transaction" {
     const allocator = gpa.allocator();
 
     // Connect to Couchbase
-    var client = try Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-        .bucket = TEST_BUCKET,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Begin transaction
@@ -330,12 +291,7 @@ test "transaction - transaction configuration" {
     const allocator = gpa.allocator();
 
     // Connect to Couchbase
-    var client = try Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-        .bucket = TEST_BUCKET,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Begin transaction
@@ -365,12 +321,7 @@ test "transaction - memory management" {
     const allocator = gpa.allocator();
 
     // Connect to Couchbase
-    var client = try Client.connect(allocator, .{
-        .connection_string = TEST_HOST,
-        .username = TEST_USER,
-        .password = TEST_PASSWORD,
-        .bucket = TEST_BUCKET,
-    });
+    var client = try getTestClient(allocator);
     defer client.disconnect();
 
     // Begin transaction

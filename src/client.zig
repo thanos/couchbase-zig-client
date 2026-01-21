@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("c.zig");
+const c = @import("c.zig").lcb;
 const Error = @import("error_context.zig").Error;
 const fromStatusCode = @import("error_context.zig").fromStatusCode;
 const ErrorContext = @import("error_context.zig").ErrorContext;
@@ -41,20 +41,39 @@ pub const Client = struct {
 
     /// Create and connect to a Couchbase cluster
     pub fn connect(allocator: std.mem.Allocator, options: ConnectOptions) Error!Client {
+        const checkStatus = struct {
+            fn f(rc: c.lcb_STATUS) Error!void {
+                if (rc != c.LCB_SUCCESS) {
+                    const rc_int: i32 = @intCast(rc);
+                    const msg = std.mem.span(c.lcb_strerror_short(rc));
+                    std.debug.print("libcouchbase error rc={d} msg={s}\n", .{ rc_int, msg });
+                }
+                try fromStatusCode(rc);
+            }
+        }.f;
+
         var create_opts: ?*c.lcb_CREATEOPTS = null;
         _ = c.lcb_createopts_create(&create_opts, c.LCB_TYPE_BUCKET);
         defer _ = c.lcb_createopts_destroy(create_opts);
 
-        // Build connection string with bucket if provided
+        // Build connection string (without bucket - set separately)
         // NOTE: libcouchbase holds references to these strings, so we must keep them alive
         // until after lcb_create() is called
-        const conn_str_z = if (options.bucket) |bucket|
-            try std.fmt.allocPrintZ(allocator, "{s}/{s}", .{ options.connection_string, bucket })
-        else
-            try allocator.dupeZ(u8, options.connection_string);
+        const conn_str_z = try allocator.dupeZ(u8, options.connection_string);
         defer allocator.free(conn_str_z);
         
+        // Set bucket separately if provided (must stay alive until after lcb_create)
+        const bucket_z = if (options.bucket) |bucket|
+            try allocator.dupeZ(u8, bucket)
+        else
+            null;
+        defer if (bucket_z) |bz| allocator.free(bz);
+        
         _ = c.lcb_createopts_connstr(create_opts, conn_str_z.ptr, conn_str_z.len);
+        
+        if (bucket_z) |bz| {
+            _ = c.lcb_createopts_bucket(create_opts, bz.ptr, bz.len);
+        }
 
         // Set credentials if provided
         // NOTE: These strings must also stay alive until after lcb_create()
@@ -78,26 +97,27 @@ pub const Client = struct {
         // Create instance - now all strings are still alive
         var instance: ?*c.lcb_INSTANCE = null;
         var rc = c.lcb_create(&instance, create_opts);
-        try fromStatusCode(rc);
+        try checkStatus(rc);
         // After this point, libcouchbase has copied the strings, so we can free them
 
         const inst = instance orelse return error.ConnectionFailed;
 
-        // Set timeout
-        var timeout_ms = options.timeout_ms;
-        _ = c.lcb_cntl(inst, c.LCB_CNTL_SET, c.LCB_CNTL_CONFIGURATION_TIMEOUT, &timeout_ms);
+        // libcouchbase expects timeouts in microseconds for cntl settings.
+        var timeout_us: u32 = std.math.mul(u32, options.timeout_ms, 1000) catch std.math.maxInt(u32);
+        _ = c.lcb_cntl(inst, c.LCB_CNTL_SET, c.LCB_CNTL_CONFIGURATION_TIMEOUT, &timeout_us);
+        _ = c.lcb_cntl(inst, c.LCB_CNTL_SET, c.LCB_CNTL_OP_TIMEOUT, &timeout_us);
 
         // Connect
         rc = c.lcb_connect(inst);
-        try fromStatusCode(rc);
+        try checkStatus(rc);
 
         // Wait for connection
         rc = c.lcb_wait(inst, 0);
-        try fromStatusCode(rc);
+        try checkStatus(rc);
 
         // Get bootstrap status
         rc = c.lcb_get_bootstrap_status(inst);
-        try fromStatusCode(rc);
+        try checkStatus(rc);
 
         // Initialize logger
         const logging_config = options.logging_config orelse LoggingConfig{};
@@ -493,7 +513,7 @@ pub const Client = struct {
     pub fn cleanupExpiredPreparedStatements(self: *Client) void {
         if (!self.cache_config.enabled) return;
         
-        var to_remove = std.ArrayList([]const u8).init(self.allocator);
+        var to_remove = std.array_list.Managed([]const u8).init(self.allocator);
         defer to_remove.deinit();
         
         var iterator = self.prepared_statements.iterator();

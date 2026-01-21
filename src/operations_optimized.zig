@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("c.zig");
+const c = @import("c.zig").lcb;
 const Error = @import("error.zig").Error;
 const fromStatusCode = @import("error.zig").fromStatusCode;
 const types = @import("types.zig");
@@ -44,7 +44,7 @@ pub fn getOptimized(client: *Client, key: []const u8) Error!OptimizedGetResult {
     _ = c.lcb_cmdget_key(cmd, key.ptr, key.len);
 
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGET) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGET) callconv(.c) void {
             _ = instance;
             _ = cbtype;
 
@@ -128,7 +128,7 @@ pub fn getZeroCopy(client: *Client, key: []const u8, buffer: []u8) Error!struct 
     _ = c.lcb_cmdget_key(cmd, key.ptr, key.len);
 
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGET) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGET) callconv(.c) void {
             _ = instance;
             _ = cbtype;
 

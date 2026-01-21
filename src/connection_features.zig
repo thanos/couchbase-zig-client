@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("c.zig");
+const c = @import("c.zig").lcb;
 
 /// Connection pool configuration
 pub const ConnectionPoolConfig = struct {
@@ -359,9 +359,9 @@ pub const RetryPolicy = struct {
 /// Connection pool for managing multiple connections
 pub const ConnectionPool = struct {
     config: ConnectionPoolConfig,
-    connections: std.ArrayList(*c.lcb_INSTANCE),
-    available_connections: std.ArrayList(*c.lcb_INSTANCE),
-    connection_metadata: std.ArrayList(ConnectionMetadataEntry),
+    connections: std.array_list.Managed(*c.lcb_INSTANCE),
+    available_connections: std.array_list.Managed(*c.lcb_INSTANCE),
+    connection_metadata: std.array_list.Managed(ConnectionMetadataEntry),
     // Optimized: Use hash map for O(1) connection lookups
     connection_map: std.AutoHashMap(*c.lcb_INSTANCE, usize), // connection -> metadata index
     allocator: std.mem.Allocator,
@@ -382,9 +382,9 @@ pub const ConnectionPool = struct {
     pub fn init(allocator: std.mem.Allocator, config: ConnectionPoolConfig) ConnectionPool {
         return ConnectionPool{
             .config = config,
-            .connections = std.ArrayList(*c.lcb_INSTANCE).init(allocator),
-            .available_connections = std.ArrayList(*c.lcb_INSTANCE).init(allocator),
-            .connection_metadata = std.ArrayList(ConnectionMetadataEntry).init(allocator),
+            .connections = std.array_list.Managed(*c.lcb_INSTANCE).init(allocator),
+            .available_connections = std.array_list.Managed(*c.lcb_INSTANCE).init(allocator),
+            .connection_metadata = std.array_list.Managed(ConnectionMetadataEntry).init(allocator),
             .connection_map = std.AutoHashMap(*c.lcb_INSTANCE, usize).init(allocator),
             .allocator = allocator,
         };
@@ -570,7 +570,7 @@ pub const ConnectionPool = struct {
 pub const FailoverManager = struct {
     config: FailoverConfig,
     current_endpoint: []const u8,
-    available_endpoints: std.ArrayList([]const u8),
+    available_endpoints: std.array_list.Managed([]const u8),
     circuit_breaker_state: CircuitBreakerState,
     health_check_timer: ?std.time.Timer = null,
     allocator: std.mem.Allocator,
@@ -582,7 +582,7 @@ pub const FailoverManager = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, config: FailoverConfig, endpoints: []const []const u8) !FailoverManager {
-        var available_endpoints = std.ArrayList([]const u8).init(allocator);
+        var available_endpoints = std.array_list.Managed([]const u8).init(allocator);
         for (endpoints) |endpoint| {
             try available_endpoints.append(try allocator.dupe(u8, endpoint));
         }
@@ -686,7 +686,7 @@ pub const RetryManager = struct {
                 const actual_delay = @as(u32, @intFromFloat(@as(f64, @floatFromInt(delay_ms)) * (1.0 + jitter)));
                 
                 // Apply delay
-                std.time.sleep(std.time.ns_per_ms * actual_delay);
+                std.Thread.sleep(std.time.ns_per_ms * actual_delay);
 
                 // Calculate next delay
                 if (self.policy.exponential_backoff) {

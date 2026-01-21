@@ -1,5 +1,16 @@
 const std = @import("std");
 
+fn addTestWithModule(b: *std.Build, name: []const u8, root_path: []const u8, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step.Compile {
+    const test_module = b.addModule(name, .{
+        .root_source_file = b.path(root_path),
+        .target = target,
+        .optimize = optimize,
+    });
+    return b.addTest(.{
+        .root_module = test_module,
+    });
+}
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -23,11 +34,15 @@ pub fn build(b: *std.Build) void {
     couchbase_module.linkSystemLibrary("couchbase", .{});
 
     // Static library
-    const lib = b.addStaticLibrary(.{
-        .name = "couchbase-zig-client",
+    const lib_module = b.addModule("couchbase-lib", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
+    });
+    const lib = b.addLibrary(.{
+        .name = "couchbase-zig-client",
+        .root_module = lib_module,
+        .linkage = .static,
     });
     lib.linkSystemLibrary("couchbase");
     lib.linkLibC();
@@ -48,11 +63,14 @@ pub fn build(b: *std.Build) void {
     const example_step = b.step("examples", "Build all examples");
     
     inline for (examples) |example| {
-        const exe = b.addExecutable(.{
-            .name = example.name,
+        const exe_module = b.addModule(example.name, .{
             .root_source_file = b.path(example.path),
             .target = target,
             .optimize = optimize,
+        });
+        const exe = b.addExecutable(.{
+            .name = example.name,
+            .root_module = exe_module,
         });
         exe.root_module.addImport("couchbase", couchbase_module);
         // Add zbench import for performance_benchmark example
@@ -76,199 +94,122 @@ pub fn build(b: *std.Build) void {
     }
 
     // Tests
+    // Library unit tests run directly against the main couchbase module so that
+    // all imports (including zbench) are available.
     const lib_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/root.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = couchbase_module,
     });
     lib_unit_tests.linkSystemLibrary("couchbase");
     lib_unit_tests.linkLibC();
 
-    const unit_tests = b.addTest(.{
+    const unit_tests_module = b.addModule("unit-tests", .{
         .root_source_file = b.path("tests/unit_test.zig"),
         .target = target,
         .optimize = optimize,
+    });
+    const unit_tests = b.addTest(.{
+        .root_module = unit_tests_module,
     });
     unit_tests.root_module.addImport("couchbase", couchbase_module);
     unit_tests.linkSystemLibrary("couchbase");
     unit_tests.linkLibC();
 
-    const integration_tests = b.addTest(.{
-        .root_source_file = b.path("tests/integration_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const integration_tests = addTestWithModule(b, "integration-tests", "tests/integration_test.zig", target, optimize);
     integration_tests.root_module.addImport("couchbase", couchbase_module);
     integration_tests.linkSystemLibrary("couchbase");
     integration_tests.linkLibC();
 
-    const coverage_tests = b.addTest(.{
-        .root_source_file = b.path("tests/coverage_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const coverage_tests = addTestWithModule(b, "coverage-tests", "tests/coverage_test.zig", target, optimize);
     coverage_tests.root_module.addImport("couchbase", couchbase_module);
     coverage_tests.linkSystemLibrary("couchbase");
     coverage_tests.linkLibC();
 
-    const new_ops_tests = b.addTest(.{
-        .root_source_file = b.path("tests/new_operations_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const new_ops_tests = addTestWithModule(b, "new-ops-tests", "tests/new_operations_test.zig", target, optimize);
     new_ops_tests.root_module.addImport("couchbase", couchbase_module);
     new_ops_tests.linkSystemLibrary("couchbase");
     new_ops_tests.linkLibC();
 
-    const view_tests = b.addTest(.{
-        .root_source_file = b.path("tests/view_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const view_tests = addTestWithModule(b, "view-tests", "tests/view_test.zig", target, optimize);
     view_tests.root_module.addImport("couchbase", couchbase_module);
     view_tests.linkSystemLibrary("couchbase");
     view_tests.linkLibC();
 
-    const demo_tests = b.addTest(.{
-        .root_source_file = b.path("demo_integration_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const demo_tests = addTestWithModule(b, "demo-tests", "demo_integration_test.zig", target, optimize);
     demo_tests.root_module.addImport("couchbase", couchbase_module);
     demo_tests.linkSystemLibrary("couchbase");
     demo_tests.linkLibC();
 
-    const param_query_tests = b.addTest(.{
-        .root_source_file = b.path("tests/parameterized_query_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const param_query_tests = addTestWithModule(b, "param-query-tests", "tests/parameterized_query_test.zig", target, optimize);
     param_query_tests.root_module.addImport("couchbase", couchbase_module);
     param_query_tests.linkSystemLibrary("couchbase");
     param_query_tests.linkLibC();
 
-    const advanced_query_tests = b.addTest(.{
-        .root_source_file = b.path("tests/simple_advanced_query_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const advanced_query_tests = addTestWithModule(b, "advanced-query-tests", "tests/simple_advanced_query_test.zig", target, optimize);
     advanced_query_tests.root_module.addImport("couchbase", couchbase_module);
     advanced_query_tests.linkSystemLibrary("couchbase");
     advanced_query_tests.linkLibC();
 
-    const connection_features_tests = b.addTest(.{
-        .root_source_file = b.path("tests/connection_features_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const connection_features_tests = addTestWithModule(b, "connection-features-tests", "tests/connection_features_test.zig", target, optimize);
     connection_features_tests.root_module.addImport("couchbase", couchbase_module);
     connection_features_tests.linkSystemLibrary("couchbase");
     connection_features_tests.linkLibC();
 
-    const prepared_statement_tests = b.addTest(.{
-        .root_source_file = b.path("tests/prepared_statement_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const prepared_statement_tests = addTestWithModule(b, "prepared-statement-tests", "tests/prepared_statement_test.zig", target, optimize);
     prepared_statement_tests.root_module.addImport("couchbase", couchbase_module);
     prepared_statement_tests.linkSystemLibrary("couchbase");
     prepared_statement_tests.linkLibC();
 
-    const query_cancellation_tests = b.addTest(.{
-        .root_source_file = b.path("tests/query_cancellation_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const query_cancellation_tests = addTestWithModule(b, "query-cancellation-tests", "tests/query_cancellation_test.zig", target, optimize);
     query_cancellation_tests.root_module.addImport("couchbase", couchbase_module);
     query_cancellation_tests.linkSystemLibrary("couchbase");
     query_cancellation_tests.linkLibC();
 
-    const enhanced_metadata_tests = b.addTest(.{
-        .root_source_file = b.path("tests/enhanced_metadata_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const enhanced_metadata_tests = addTestWithModule(b, "enhanced-metadata-tests", "tests/enhanced_metadata_test.zig", target, optimize);
     enhanced_metadata_tests.root_module.addImport("couchbase", couchbase_module);
     enhanced_metadata_tests.linkSystemLibrary("couchbase");
     enhanced_metadata_tests.linkLibC();
 
-    const get_and_lock_tests = b.addTest(.{
-        .root_source_file = b.path("tests/get_and_lock_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const get_and_lock_tests = addTestWithModule(b, "get-and-lock-tests", "tests/get_and_lock_test.zig", target, optimize);
     get_and_lock_tests.root_module.addImport("couchbase", couchbase_module);
     get_and_lock_tests.linkSystemLibrary("couchbase");
     get_and_lock_tests.linkLibC();
 
-    const collections_tests = b.addTest(.{
-        .root_source_file = b.path("tests/collections_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const collections_tests = addTestWithModule(b, "collections-tests", "tests/collections_test.zig", target, optimize);
     collections_tests.root_module.addImport("couchbase", couchbase_module);
     collections_tests.linkSystemLibrary("couchbase");
     collections_tests.linkLibC();
 
-    const collections_phase1_tests = b.addTest(.{
-        .root_source_file = b.path("tests/collections_phase1_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const collections_phase1_tests = addTestWithModule(b, "collections-phase1-tests", "tests/collections_phase1_test.zig", target, optimize);
     collections_phase1_tests.root_module.addImport("couchbase", couchbase_module);
     collections_phase1_tests.linkSystemLibrary("couchbase");
     collections_phase1_tests.linkLibC();
 
-    const collections_phase2_tests = b.addTest(.{
-        .root_source_file = b.path("tests/collections_phase2_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const collections_phase2_tests = addTestWithModule(b, "collections-phase2-tests", "tests/collections_phase2_test.zig", target, optimize);
     collections_phase2_tests.root_module.addImport("couchbase", couchbase_module);
     collections_phase2_tests.linkSystemLibrary("couchbase");
     collections_phase2_tests.linkLibC();
 
-    const collections_phase3_tests = b.addTest(.{
-        .root_source_file = b.path("tests/collections_phase3_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const collections_phase3_tests = addTestWithModule(b, "collections-phase3-tests", "tests/collections_phase3_test.zig", target, optimize);
     collections_phase3_tests.root_module.addImport("couchbase", couchbase_module);
     collections_phase3_tests.linkSystemLibrary("couchbase");
     collections_phase3_tests.linkLibC();
 
-    const batch_tests = b.addTest(.{
-        .root_source_file = b.path("tests/batch_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const batch_tests = addTestWithModule(b, "batch-tests", "tests/batch_test.zig", target, optimize);
     batch_tests.root_module.addImport("couchbase", couchbase_module);
     batch_tests.linkSystemLibrary("couchbase");
     batch_tests.linkLibC();
 
-    const enhanced_batch_tests = b.addTest(.{
-        .root_source_file = b.path("tests/enhanced_batch_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const enhanced_batch_tests = addTestWithModule(b, "enhanced-batch-tests", "tests/enhanced_batch_test.zig", target, optimize);
     enhanced_batch_tests.root_module.addImport("couchbase", couchbase_module);
     enhanced_batch_tests.linkSystemLibrary("couchbase");
     enhanced_batch_tests.linkLibC();
 
-    const spatial_view_tests = b.addTest(.{
-        .root_source_file = b.path("tests/spatial_view_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const spatial_view_tests = addTestWithModule(b, "spatial-view-tests", "tests/spatial_view_test.zig", target, optimize);
     spatial_view_tests.root_module.addImport("couchbase", couchbase_module);
     spatial_view_tests.linkSystemLibrary("couchbase");
     spatial_view_tests.linkLibC();
 
-    const durability_tests = b.addTest(.{
-        .root_source_file = b.path("tests/durability_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const durability_tests = addTestWithModule(b, "durability-tests", "tests/durability_test.zig", target, optimize);
     durability_tests.root_module.addImport("couchbase", couchbase_module);
     durability_tests.linkSystemLibrary("couchbase");
     durability_tests.linkLibC();
@@ -295,11 +236,7 @@ pub fn build(b: *std.Build) void {
     const run_spatial_view_tests = b.addRunArtifact(spatial_view_tests);
     const run_durability_tests = b.addRunArtifact(durability_tests);
 
-    const transaction_tests = b.addTest(.{
-        .root_source_file = b.path("tests/transaction_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const transaction_tests = addTestWithModule(b, "transaction-tests", "tests/transaction_test.zig", target, optimize);
     transaction_tests.root_module.addImport("couchbase", couchbase_module);
     transaction_tests.linkSystemLibrary("couchbase");
     transaction_tests.linkLibC();
@@ -375,11 +312,7 @@ pub fn build(b: *std.Build) void {
     transaction_test_step.dependOn(&run_transaction_tests.step);
 
     // Advanced N1QL tests
-    const advanced_n1ql_tests = b.addTest(.{
-        .root_source_file = b.path("tests/advanced_n1ql_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const advanced_n1ql_tests = addTestWithModule(b, "advanced-n1ql-tests", "tests/advanced_n1ql_test.zig", target, optimize);
     advanced_n1ql_tests.root_module.addImport("couchbase", couchbase_module);
     advanced_n1ql_tests.linkSystemLibrary("couchbase");
     advanced_n1ql_tests.linkLibC();
@@ -389,11 +322,7 @@ pub fn build(b: *std.Build) void {
     advanced_n1ql_test_step.dependOn(&run_advanced_n1ql_tests.step);
 
     // Query options memory management tests
-    const query_options_memory_tests = b.addTest(.{
-        .root_source_file = b.path("tests/query_options_memory_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const query_options_memory_tests = addTestWithModule(b, "query-options-memory-tests", "tests/query_options_memory_test.zig", target, optimize);
     query_options_memory_tests.root_module.addImport("couchbase", couchbase_module);
     query_options_memory_tests.linkSystemLibrary("couchbase");
     query_options_memory_tests.linkLibC();
@@ -403,11 +332,7 @@ pub fn build(b: *std.Build) void {
     query_options_memory_test_step.dependOn(&run_query_options_memory_tests.step);
 
     // Diagnostics tests
-    const diagnostics_tests = b.addTest(.{
-        .root_source_file = b.path("tests/diagnostics_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const diagnostics_tests = addTestWithModule(b, "diagnostics-tests", "tests/diagnostics_test.zig", target, optimize);
     diagnostics_tests.root_module.addImport("couchbase", couchbase_module);
     diagnostics_tests.linkSystemLibrary("couchbase");
     diagnostics_tests.linkLibC();
@@ -417,11 +342,7 @@ pub fn build(b: *std.Build) void {
     diagnostics_test_step.dependOn(&run_diagnostics_tests.step);
 
     // Diagnostics unit tests
-    const diagnostics_unit_tests = b.addTest(.{
-        .root_source_file = b.path("tests/diagnostics_unit_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const diagnostics_unit_tests = addTestWithModule(b, "diagnostics-unit-tests", "tests/diagnostics_unit_test.zig", target, optimize);
     diagnostics_unit_tests.root_module.addImport("couchbase", couchbase_module);
     diagnostics_unit_tests.linkSystemLibrary("couchbase");
     diagnostics_unit_tests.linkLibC();
@@ -431,11 +352,7 @@ pub fn build(b: *std.Build) void {
     diagnostics_unit_test_step.dependOn(&run_diagnostics_unit_tests.step);
 
     // Error handling and logging tests
-    const error_handling_logging_tests = b.addTest(.{
-        .root_source_file = b.path("tests/error_handling_logging_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const error_handling_logging_tests = addTestWithModule(b, "error-handling-logging-tests", "tests/error_handling_logging_test.zig", target, optimize);
     error_handling_logging_tests.root_module.addImport("couchbase", couchbase_module);
     error_handling_logging_tests.linkSystemLibrary("couchbase");
     error_handling_logging_tests.linkLibC();
@@ -445,11 +362,7 @@ pub fn build(b: *std.Build) void {
     error_handling_logging_test_step.dependOn(&run_error_handling_logging_tests.step);
 
     // Binary protocol tests
-    const binary_protocol_tests = b.addTest(.{
-        .root_source_file = b.path("tests/binary_protocol_test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const binary_protocol_tests = addTestWithModule(b, "binary-protocol-tests", "tests/binary_protocol_test.zig", target, optimize);
     binary_protocol_tests.root_module.addImport("couchbase", couchbase_module);
     binary_protocol_tests.linkSystemLibrary("couchbase");
     binary_protocol_tests.linkLibC();

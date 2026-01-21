@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const c = @import("c.zig");
+pub const c = @import("c.zig").lcb;
 pub const Client = @import("client.zig").Client;
 pub const Error = @import("error_context.zig").Error;
 pub const StatusCode = @import("error.zig").StatusCode;
@@ -40,8 +40,8 @@ pub const RetryManager = connection_features.RetryManager;
 
 // Performance & Benchmarking
 pub const performance = @import("performance.zig");
-pub const BenchmarkResult = performance.BenchmarkResult;
 pub const BenchmarkConfig = performance.BenchmarkConfig;
+pub const BenchmarkRunner = performance.BenchmarkRunner;
 
 // Re-export common types
 pub const Document = types.Document;
@@ -123,11 +123,19 @@ pub const BatchOperationResult = types.BatchOperationResult;
 
 // Test configuration from environment variables
 pub fn getTestConfig() TestConfig {
+    const allocator = std.heap.page_allocator;
+    const host_raw = std.process.getEnvVarOwned(allocator, "COUCHBASE_HOST") catch null;
+    const conn = if (host_raw) |h|
+        (if (std.mem.indexOf(u8, h, "://") != null) h else (std.fmt.allocPrint(allocator, "couchbase://{s}", .{h}) catch h))
+    else
+        "couchbase://127.0.0.1";
+    // Default to "test" bucket if not specified (matches user's setup)
+    const bucket_name = std.process.getEnvVarOwned(allocator, "COUCHBASE_BUCKET") catch "test";
     return TestConfig{
-        .connection_string = std.process.getEnvVarOwned(std.heap.page_allocator, "COUCHBASE_HOST") catch "couchbase://127.0.0.1",
-        .username = std.process.getEnvVarOwned(std.heap.page_allocator, "COUCHBASE_USER") catch "tester",
-        .password = std.process.getEnvVarOwned(std.heap.page_allocator, "COUCHBASE_PASSWORD") catch "csfb2010",
-        .bucket = std.process.getEnvVarOwned(std.heap.page_allocator, "COUCHBASE_BUCKET") catch "default",
+        .connection_string = conn,
+        .username = std.process.getEnvVarOwned(allocator, "COUCHBASE_USER") catch "admin",
+        .password = std.process.getEnvVarOwned(allocator, "COUCHBASE_PASSWORD") catch "csfb2010",
+        .bucket = bucket_name,
         .timeout_ms = 30000,
     };
 }

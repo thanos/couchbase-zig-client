@@ -60,7 +60,7 @@ A high-performance, memory-safe Zig client library for Couchbase Server, providi
 
 ## Requirements
 
-- **Zig**: 0.11.0 or later
+- **Zig**: 0.15.2 or later
 - **libcouchbase**: 3.3.0 or later
 - **Couchbase Server**: 7.0 or later (recommended 7.2+)
 - **Operating System**: Linux, macOS, Windows
@@ -69,13 +69,15 @@ A high-performance, memory-safe Zig client library for Couchbase Server, providi
 
 ### Prerequisites
 
-1. Install Zig 0.11.0 or later:
+1. Install Zig 0.15.2 or later:
 ```bash
    # macOS
    brew install zig
    
    # Linux
-   curl -L https://ziglang.org/download/0.11.0/zig-linux-x86_64-0.11.0.tar.xz | tar -xJ
+   curl -L https://ziglang.org/download/0.15.2/zig-linux-x86_64-0.15.2.tar.xz | tar -xJ
+   
+   # Or download from https://ziglang.org/download/
    ```
 
 2. Install libcouchbase:

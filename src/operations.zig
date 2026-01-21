@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("c.zig");
+const c = @import("c.zig").lcb;
 const Error = @import("error.zig").Error;
 const fromStatusCode = @import("error.zig").fromStatusCode;
 const types = @import("types.zig");
@@ -62,12 +62,14 @@ pub const StoreOptions = struct {
     expiry: u32 = 0,
     flags: u32 = 0,
     durability: types.Durability = .{},
+    timeout_ms: u32 = 75000,
 };
 
 /// Remove operation options
 pub const RemoveOptions = struct {
     cas: u64 = 0,
     durability: types.Durability = .{},
+    timeout_ms: u32 = 75000,
 };
 
 /// Counter operation options
@@ -75,6 +77,7 @@ pub const CounterOptions = struct {
     initial: u64 = 0,
     expiry: u32 = 0,
     durability: types.Durability = .{},
+    timeout_ms: u32 = 75000,
 };
 
 /// Query options
@@ -623,6 +626,7 @@ const UnlockContext = struct {
 const MutationContext = struct {
     result: MutationResult = .{ .cas = 0 },
     err: ?Error = null,
+    last_rc: ?c.lcb_STATUS = null,
     done: bool = false,
     allocator: std.mem.Allocator,
 };
@@ -630,17 +634,34 @@ const MutationContext = struct {
 const CounterContext = struct {
     result: CounterResult = .{ .value = 0, .cas = 0 },
     err: ?Error = null,
+    last_rc: ?c.lcb_STATUS = null,
     done: bool = false,
 };
 
 const QueryContext = struct {
-    rows: std.ArrayList([]const u8),
+    rows: std.array_list.Managed([]const u8),
     meta: ?[]const u8 = null,
     err: ?Error = null,
     done: bool = false,
     allocator: std.mem.Allocator,
     handle: ?*types.QueryHandle = null,
 };
+
+// libcouchbase command timeout setters take microseconds. Our public API uses milliseconds.
+fn lcbTimeoutUs(timeout_ms: u32) u32 {
+    return std.math.mul(u32, timeout_ms, 1000) catch std.math.maxInt(u32);
+}
+
+// Wait for operation completion.
+//
+// Note: libcouchbase doesn't expose a "timed wait" via `lcb_wait()`; timeouts are enforced
+// via operation timeouts (e.g. `lcb_cmd*_timeout`) and `LCB_CNTL_OP_TIMEOUT`.
+fn waitForCompletion(instance: ?*c.lcb_INSTANCE, ctx: anytype, timeout_ms: u32) Error!void {
+    _ = ctx;
+    _ = timeout_ms;
+    const rc = c.lcb_wait(instance, 0);
+    try fromStatusCode(rc);
+}
 
 /// Get operation
 pub fn get(client: *Client, key: []const u8) Error!GetResult {
@@ -653,7 +674,7 @@ pub fn get(client: *Client, key: []const u8) Error!GetResult {
     _ = c.lcb_cmdget_key(cmd, key.ptr, key.len);
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGET) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGET) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -696,11 +717,10 @@ pub fn get(client: *Client, key: []const u8) Error!GetResult {
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_GET, @ptrCast(&callback));
     
-    var rc = c.lcb_get(client.instance, &ctx, cmd);
+    const rc = c.lcb_get(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
     return ctx.result orelse error.Unknown;
@@ -718,7 +738,7 @@ pub fn getWithCollection(client: *Client, key: []const u8, collection: types.Col
     _ = c.lcb_cmdget_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGET) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGET) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -761,11 +781,10 @@ pub fn getWithCollection(client: *Client, key: []const u8, collection: types.Col
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_GET, @ptrCast(&callback));
     
-    var rc = c.lcb_get(client.instance, &ctx, cmd);
+    const rc = c.lcb_get(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
     return ctx.result orelse error.Unknown;
@@ -780,7 +799,7 @@ pub fn getAndLock(client: *Client, key: []const u8, options: types.GetAndLockOpt
     defer _ = c.lcb_cmdget_destroy(cmd);
     
     _ = c.lcb_cmdget_key(cmd, key.ptr, key.len);
-    _ = c.lcb_cmdget_timeout(cmd, options.timeout_ms);
+    _ = c.lcb_cmdget_timeout(cmd, lcbTimeoutUs(options.timeout_ms));
     
     // Set lock time (this is the key difference from regular get)
     _ = c.lcb_cmdget_locktime(cmd, options.lock_time);
@@ -790,7 +809,7 @@ pub fn getAndLock(client: *Client, key: []const u8, options: types.GetAndLockOpt
     _ = options.durability; // Suppress unused variable warning
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGET) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGET) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -833,11 +852,10 @@ pub fn getAndLock(client: *Client, key: []const u8, options: types.GetAndLockOpt
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_GET, @ptrCast(&callback));
     
-    var rc = c.lcb_get(client.instance, &ctx, cmd);
+    const rc = c.lcb_get(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
     const get_result = ctx.result orelse return error.Unknown;
@@ -860,7 +878,7 @@ pub fn getAndLockWithCollection(client: *Client, key: []const u8, collection: ty
     defer _ = c.lcb_cmdget_destroy(cmd);
     
     _ = c.lcb_cmdget_key(cmd, key.ptr, key.len);
-    _ = c.lcb_cmdget_timeout(cmd, options.timeout_ms);
+    _ = c.lcb_cmdget_timeout(cmd, lcbTimeoutUs(options.timeout_ms));
     _ = c.lcb_cmdget_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
     
     // Set lock time (this is the key difference from regular get)
@@ -871,7 +889,7 @@ pub fn getAndLockWithCollection(client: *Client, key: []const u8, collection: ty
     _ = options.durability; // Suppress unused variable warning
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGET) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGET) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -914,11 +932,10 @@ pub fn getAndLockWithCollection(client: *Client, key: []const u8, collection: ty
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_GET, @ptrCast(&callback));
     
-    var rc = c.lcb_get(client.instance, &ctx, cmd);
+    const rc = c.lcb_get(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
     const get_result = ctx.result orelse return error.Unknown;
@@ -942,10 +959,10 @@ pub fn unlockWithOptions(client: *Client, key: []const u8, cas: u64, options: ty
     
     _ = c.lcb_cmdunlock_key(cmd, key.ptr, key.len);
     _ = c.lcb_cmdunlock_cas(cmd, cas);
-    _ = c.lcb_cmdunlock_timeout(cmd, options.timeout_ms);
+    _ = c.lcb_cmdunlock_timeout(cmd, lcbTimeoutUs(options.timeout_ms));
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPUNLOCK) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPUNLOCK) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -971,11 +988,10 @@ pub fn unlockWithOptions(client: *Client, key: []const u8, cas: u64, options: ty
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_UNLOCK, @ptrCast(&callback));
     
-    var rc = c.lcb_unlock(client.instance, &ctx, cmd);
+    const rc = c.lcb_unlock(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
     
@@ -1000,7 +1016,7 @@ pub fn getFromReplica(client: *Client, key: []const u8, mode: types.ReplicaMode)
     _ = c.lcb_cmdgetreplica_key(cmd, key.ptr, key.len);
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGETREPLICA) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGETREPLICA) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -1043,11 +1059,10 @@ pub fn getFromReplica(client: *Client, key: []const u8, mode: types.ReplicaMode)
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_GETREPLICA, @ptrCast(&callback));
     
-    var rc = c.lcb_getreplica(client.instance, &ctx, cmd);
+    const rc = c.lcb_getreplica(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
     return ctx.result orelse error.Unknown;
@@ -1069,7 +1084,7 @@ pub fn getReplicaWithCollection(client: *Client, key: []const u8, collection: ty
     _ = c.lcb_cmdgetreplica_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGETREPLICA) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPGETREPLICA) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -1112,11 +1127,10 @@ pub fn getReplicaWithCollection(client: *Client, key: []const u8, collection: ty
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_GETREPLICA, @ptrCast(&callback));
     
-    var rc = c.lcb_getreplica(client.instance, &ctx, cmd);
+    const rc = c.lcb_getreplica(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
     return ctx.result orelse error.Unknown;
@@ -1132,6 +1146,7 @@ pub fn storeWithCollection(client: *Client, key: []const u8, value: []const u8, 
     
     _ = c.lcb_cmdstore_key(cmd, key.ptr, key.len);
     _ = c.lcb_cmdstore_value(cmd, value.ptr, value.len);
+    _ = c.lcb_cmdstore_timeout(cmd, lcbTimeoutUs(options.timeout_ms));
     _ = c.lcb_cmdstore_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
     
     // Operation type is already set in lcb_cmdstore_create
@@ -1150,7 +1165,7 @@ pub fn storeWithCollection(client: *Client, key: []const u8, value: []const u8, 
     }
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSTORE) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSTORE) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -1159,6 +1174,7 @@ pub fn storeWithCollection(client: *Client, key: []const u8, value: []const u8, 
             var context: *MutationContext = @ptrCast(@alignCast(cookie));
             
             const rc = c.lcb_respstore_status(resp);
+            context.last_rc = rc;
             if (rc != c.LCB_SUCCESS) {
                 fromStatusCode(rc) catch |err| { context.err = err; };
                 context.done = true;
@@ -1175,13 +1191,18 @@ pub fn storeWithCollection(client: *Client, key: []const u8, value: []const u8, 
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_STORE, @ptrCast(&callback));
     
-    var rc = c.lcb_store(client.instance, &ctx, cmd);
+    const rc = c.lcb_store(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
-    if (ctx.err) |err| return err;
+    if (ctx.err) |err| {
+        if (ctx.last_rc) |lrc| {
+            const msg = std.mem.span(c.lcb_strerror_short(lrc));
+            std.debug.print("store failed rc={d} msg={s}\n", .{ @as(i32, @intCast(lrc)), msg });
+        }
+        return err;
+    }
     return ctx.result;
 }
 
@@ -1233,7 +1254,7 @@ pub fn store(client: *Client, key: []const u8, value: []const u8, operation: typ
     }
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSTORE) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSTORE) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -1258,11 +1279,10 @@ pub fn store(client: *Client, key: []const u8, value: []const u8, operation: typ
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_STORE, @ptrCast(&callback));
     
-    var rc = c.lcb_store(client.instance, &ctx, cmd);
+    const rc = c.lcb_store(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
     return ctx.result;
@@ -1287,7 +1307,7 @@ pub fn remove(client: *Client, key: []const u8, options: RemoveOptions) Error!Mu
     }
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPREMOVE) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPREMOVE) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -1312,11 +1332,10 @@ pub fn remove(client: *Client, key: []const u8, options: RemoveOptions) Error!Mu
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_REMOVE, @ptrCast(&callback));
     
-    var rc = c.lcb_remove(client.instance, &ctx, cmd);
+    const rc = c.lcb_remove(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
     return ctx.result;
@@ -1342,7 +1361,7 @@ pub fn removeWithCollection(client: *Client, key: []const u8, collection: types.
     }
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPREMOVE) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPREMOVE) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -1367,11 +1386,10 @@ pub fn removeWithCollection(client: *Client, key: []const u8, collection: types.
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_REMOVE, @ptrCast(&callback));
     
-    var rc = c.lcb_remove(client.instance, &ctx, cmd);
+    const rc = c.lcb_remove(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
     return ctx.result;
@@ -1388,6 +1406,7 @@ pub fn counter(client: *Client, key: []const u8, delta: i64, options: CounterOpt
     _ = c.lcb_cmdcounter_key(cmd, key.ptr, key.len);
     _ = c.lcb_cmdcounter_delta(cmd, delta);
     _ = c.lcb_cmdcounter_initial(cmd, options.initial);
+    _ = c.lcb_cmdcounter_timeout(cmd, lcbTimeoutUs(options.timeout_ms));
     
     if (options.expiry > 0) {
         _ = c.lcb_cmdcounter_expiry(cmd, options.expiry);
@@ -1398,7 +1417,7 @@ pub fn counter(client: *Client, key: []const u8, delta: i64, options: CounterOpt
     }
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPCOUNTER) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPCOUNTER) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -1408,6 +1427,7 @@ pub fn counter(client: *Client, key: []const u8, delta: i64, options: CounterOpt
             
             const rc = c.lcb_respcounter_status(resp);
             if (rc != c.LCB_SUCCESS) {
+                context.last_rc = rc;
                 fromStatusCode(rc) catch |err| { context.err = err; };
                 context.done = true;
                 return;
@@ -1427,13 +1447,18 @@ pub fn counter(client: *Client, key: []const u8, delta: i64, options: CounterOpt
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_COUNTER, @ptrCast(&callback));
     
-    var rc = c.lcb_counter(client.instance, &ctx, cmd);
+    const rc = c.lcb_counter(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
-    if (ctx.err) |err| return err;
+    if (ctx.err) |err| {
+        if (ctx.last_rc) |lrc| {
+            const msg = std.mem.span(c.lcb_strerror_short(lrc));
+            std.debug.print("counter failed rc={d} msg={s}\n", .{ @as(i32, @intCast(lrc)), msg });
+        }
+        return err;
+    }
     return ctx.result;
 }
 
@@ -1449,6 +1474,7 @@ pub fn counterWithCollection(client: *Client, key: []const u8, collection: types
     _ = c.lcb_cmdcounter_delta(cmd, delta);
     _ = c.lcb_cmdcounter_initial(cmd, options.initial);
     _ = c.lcb_cmdcounter_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
+    _ = c.lcb_cmdcounter_timeout(cmd, lcbTimeoutUs(options.timeout_ms));
     
     if (options.expiry > 0) {
         _ = c.lcb_cmdcounter_expiry(cmd, options.expiry);
@@ -1459,7 +1485,7 @@ pub fn counterWithCollection(client: *Client, key: []const u8, collection: types
     }
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPCOUNTER) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPCOUNTER) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -1488,11 +1514,10 @@ pub fn counterWithCollection(client: *Client, key: []const u8, collection: types
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_COUNTER, @ptrCast(&callback));
     
-    var rc = c.lcb_counter(client.instance, &ctx, cmd);
+    const rc = c.lcb_counter(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
     return ctx.result;
@@ -1510,7 +1535,7 @@ pub fn touch(client: *Client, key: []const u8, expiry: u32) Error!MutationResult
     _ = c.lcb_cmdtouch_expiry(cmd, expiry);
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPTOUCH) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPTOUCH) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -1535,11 +1560,10 @@ pub fn touch(client: *Client, key: []const u8, expiry: u32) Error!MutationResult
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_TOUCH, @ptrCast(&callback));
     
-    var rc = c.lcb_touch(client.instance, &ctx, cmd);
+    const rc = c.lcb_touch(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
     return ctx.result;
@@ -1558,7 +1582,7 @@ pub fn touchWithCollection(client: *Client, key: []const u8, collection: types.C
     _ = c.lcb_cmdtouch_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPTOUCH) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPTOUCH) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -1583,11 +1607,10 @@ pub fn touchWithCollection(client: *Client, key: []const u8, collection: types.C
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_TOUCH, @ptrCast(&callback));
     
-    var rc = c.lcb_touch(client.instance, &ctx, cmd);
+    const rc = c.lcb_touch(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
     return ctx.result;
@@ -1605,7 +1628,7 @@ pub fn unlock(client: *Client, key: []const u8, cas: u64) Error!void {
     _ = c.lcb_cmdunlock_cas(cmd, cas);
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPUNLOCK) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPUNLOCK) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -1626,11 +1649,10 @@ pub fn unlock(client: *Client, key: []const u8, cas: u64) Error!void {
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_UNLOCK, @ptrCast(&callback));
     
-    var rc = c.lcb_unlock(client.instance, &ctx, cmd);
+    const rc = c.lcb_unlock(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
 }
@@ -1648,7 +1670,7 @@ pub fn unlockWithCollection(client: *Client, key: []const u8, cas: u64, collecti
     _ = c.lcb_cmdunlock_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPUNLOCK) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPUNLOCK) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -1669,11 +1691,10 @@ pub fn unlockWithCollection(client: *Client, key: []const u8, cas: u64, collecti
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_UNLOCK, @ptrCast(&callback));
     
-    var rc = c.lcb_unlock(client.instance, &ctx, cmd);
+    const rc = c.lcb_unlock(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
 }
@@ -1681,7 +1702,7 @@ pub fn unlockWithCollection(client: *Client, key: []const u8, cas: u64, collecti
 /// Query operation (N1QL)
 pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u8, options: QueryOptions) Error!QueryResult {
     var ctx = QueryContext{
-        .rows = std.ArrayList([]const u8).init(allocator),
+        .rows = std.array_list.Managed([]const u8).init(allocator),
         .allocator = allocator,
         .handle = null,
     };
@@ -1710,7 +1731,7 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     }
     
     // Set advanced query options
-    _ = c.lcb_cmdquery_timeout(cmd, options.timeout_ms);
+    _ = c.lcb_cmdquery_timeout(cmd, lcbTimeoutUs(options.timeout_ms));
     _ = c.lcb_cmdquery_consistency(cmd, @intFromEnum(options.consistency));
     _ = c.lcb_cmdquery_profile(cmd, @intFromEnum(options.profile));
     _ = c.lcb_cmdquery_readonly(cmd, if (options.read_only) 1 else 0);
@@ -1807,7 +1828,7 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     }
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPQUERY) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPQUERY) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -1857,11 +1878,10 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_QUERY, @ptrCast(&callback));
     
-    var rc = c.lcb_query(client.instance, &ctx, cmd);
+    const rc = c.lcb_query(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| {
         for (ctx.rows.items) |row| {
@@ -1888,7 +1908,7 @@ pub fn query(client: *Client, allocator: std.mem.Allocator, statement: []const u
 /// Analytics query operation
 pub fn analyticsQuery(client: *Client, allocator: std.mem.Allocator, statement: []const u8, options: types.AnalyticsOptions) Error!AnalyticsResult {
     var ctx = AnalyticsContext{
-        .rows = std.ArrayList([]const u8).init(allocator),
+        .rows = std.array_list.Managed([]const u8).init(allocator),
         .allocator = allocator,
     };
     
@@ -1897,7 +1917,7 @@ pub fn analyticsQuery(client: *Client, allocator: std.mem.Allocator, statement: 
     defer _ = c.lcb_cmdanalytics_destroy(cmd);
     
     _ = c.lcb_cmdanalytics_statement(cmd, statement.ptr, statement.len);
-    _ = c.lcb_cmdanalytics_timeout(cmd, options.timeout_ms);
+    _ = c.lcb_cmdanalytics_timeout(cmd, lcbTimeoutUs(options.timeout_ms));
     _ = c.lcb_cmdanalytics_priority(cmd, if (options.priority) 1 else 0);
     _ = c.lcb_cmdanalytics_readonly(cmd, if (options.read_only) 1 else 0);
     
@@ -1940,7 +1960,7 @@ pub fn analyticsQuery(client: *Client, allocator: std.mem.Allocator, statement: 
     }
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPANALYTICS) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPANALYTICS) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -1981,11 +2001,10 @@ pub fn analyticsQuery(client: *Client, allocator: std.mem.Allocator, statement: 
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_ANALYTICS, @ptrCast(&callback));
     
-    var rc = c.lcb_analytics(client.instance, &ctx, cmd);
+    const rc = c.lcb_analytics(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| {
         for (ctx.rows.items) |row| {
@@ -2003,7 +2022,7 @@ pub fn analyticsQuery(client: *Client, allocator: std.mem.Allocator, statement: 
 }
 
 const AnalyticsContext = struct {
-    rows: std.ArrayList([]const u8),
+    rows: std.array_list.Managed([]const u8),
     err: ?Error = null,
     done: bool = false,
     allocator: std.mem.Allocator,
@@ -2012,7 +2031,7 @@ const AnalyticsContext = struct {
 /// Search query operation (Full-Text Search)
 pub fn searchQuery(client: *Client, allocator: std.mem.Allocator, index_name: []const u8, search_query: []const u8, options: types.SearchOptions) Error!SearchResult {
     var ctx = SearchContext{
-        .rows = std.ArrayList([]const u8).init(allocator),
+        .rows = std.array_list.Managed([]const u8).init(allocator),
         .allocator = allocator,
     };
     
@@ -2023,7 +2042,7 @@ pub fn searchQuery(client: *Client, allocator: std.mem.Allocator, index_name: []
     _ = c.lcb_cmdsearch_payload(cmd, search_query.ptr, search_query.len);
     // Note: index_name not available in search API
     _ = index_name;
-    _ = c.lcb_cmdsearch_timeout(cmd, options.timeout_ms);
+    _ = c.lcb_cmdsearch_timeout(cmd, lcbTimeoutUs(options.timeout_ms));
     // Note: explain, disable_scoring, include_locations not available in search API
     _ = options.explain;
     _ = options.disable_scoring;
@@ -2041,7 +2060,7 @@ pub fn searchQuery(client: *Client, allocator: std.mem.Allocator, index_name: []
     _ = options.client_context_id;
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSEARCH) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSEARCH) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -2082,11 +2101,10 @@ pub fn searchQuery(client: *Client, allocator: std.mem.Allocator, index_name: []
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_SEARCH, @ptrCast(&callback));
     
-    var rc = c.lcb_search(client.instance, &ctx, cmd);
+    const rc = c.lcb_search(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| {
         for (ctx.rows.items) |row| {
@@ -2105,7 +2123,7 @@ pub fn searchQuery(client: *Client, allocator: std.mem.Allocator, index_name: []
 }
 
 const SearchContext = struct {
-    rows: std.ArrayList([]const u8),
+    rows: std.array_list.Managed([]const u8),
     err: ?Error = null,
     done: bool = false,
     allocator: std.mem.Allocator,
@@ -2126,7 +2144,7 @@ pub fn exists(client: *Client, key: []const u8) Error!bool {
     _ = c.lcb_cmdexists_key(cmd, key.ptr, key.len);
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPEXISTS) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPEXISTS) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -2153,11 +2171,10 @@ pub fn exists(client: *Client, key: []const u8) Error!bool {
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_EXISTS, @ptrCast(&callback));
     
-    var rc = c.lcb_exists(client.instance, &ctx, cmd);
+    const rc = c.lcb_exists(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
     return ctx.exists;
@@ -2179,7 +2196,7 @@ pub fn existsWithCollection(client: *Client, key: []const u8, collection: types.
     _ = c.lcb_cmdexists_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPEXISTS) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPEXISTS) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -2206,11 +2223,10 @@ pub fn existsWithCollection(client: *Client, key: []const u8, collection: types.
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_EXISTS, @ptrCast(&callback));
     
-    var rc = c.lcb_exists(client.instance, &ctx, cmd);
+    const rc = c.lcb_exists(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| return err;
     return ctx.exists;
@@ -2220,13 +2236,13 @@ pub fn existsWithCollection(client: *Client, key: []const u8, collection: types.
 pub fn lookupIn(client: *Client, allocator: std.mem.Allocator, key: []const u8, specs: []const SubdocSpec) Error!SubdocResult {
     var ctx = struct {
         cas: u64 = 0,
-        values: std.ArrayList([]const u8),
+        values: std.array_list.Managed([]const u8),
         err: ?Error = null,
         done: bool = false,
         allocator: std.mem.Allocator,
         num_specs: usize,
     }{
-        .values = std.ArrayList([]const u8).init(allocator),
+        .values = std.array_list.Managed([]const u8).init(allocator),
         .allocator = allocator,
         .num_specs = specs.len,
     };
@@ -2248,7 +2264,7 @@ pub fn lookupIn(client: *Client, allocator: std.mem.Allocator, key: []const u8, 
     _ = c.lcb_cmdsubdoc_specs(cmd, subdoc_specs);
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSUBDOC) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSUBDOC) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -2309,11 +2325,10 @@ pub fn lookupIn(client: *Client, allocator: std.mem.Allocator, key: []const u8, 
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_SDLOOKUP, @ptrCast(&callback));
     
-    var rc = c.lcb_subdoc(client.instance, &ctx, cmd);
+    const rc = c.lcb_subdoc(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| {
         for (ctx.values.items) |val| {
@@ -2334,13 +2349,13 @@ pub fn lookupIn(client: *Client, allocator: std.mem.Allocator, key: []const u8, 
 pub fn lookupInWithCollection(client: *Client, allocator: std.mem.Allocator, key: []const u8, collection: types.Collection, specs: []const SubdocSpec) Error!SubdocResult {
     var ctx = struct {
         cas: u64 = 0,
-        values: std.ArrayList([]const u8),
+        values: std.array_list.Managed([]const u8),
         err: ?Error = null,
         done: bool = false,
         allocator: std.mem.Allocator,
         num_specs: usize,
     }{
-        .values = std.ArrayList([]const u8).init(allocator),
+        .values = std.array_list.Managed([]const u8).init(allocator),
         .allocator = allocator,
         .num_specs = specs.len,
     };
@@ -2363,7 +2378,7 @@ pub fn lookupInWithCollection(client: *Client, allocator: std.mem.Allocator, key
     _ = c.lcb_cmdsubdoc_collection(cmd, collection.scope.ptr, collection.scope.len, collection.name.ptr, collection.name.len);
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSUBDOC) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSUBDOC) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -2424,11 +2439,10 @@ pub fn lookupInWithCollection(client: *Client, allocator: std.mem.Allocator, key
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_SDLOOKUP, @ptrCast(&callback));
     
-    var rc = c.lcb_subdoc(client.instance, &ctx, cmd);
+    const rc = c.lcb_subdoc(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| {
         for (ctx.values.items) |val| {
@@ -2449,13 +2463,13 @@ pub fn lookupInWithCollection(client: *Client, allocator: std.mem.Allocator, key
 pub fn mutateIn(client: *Client, allocator: std.mem.Allocator, key: []const u8, specs: []const SubdocSpec, options: SubdocOptions) Error!SubdocResult {
     var ctx = struct {
         cas: u64 = 0,
-        values: std.ArrayList([]const u8),
+        values: std.array_list.Managed([]const u8),
         err: ?Error = null,
         done: bool = false,
         allocator: std.mem.Allocator,
         num_specs: usize,
     }{
-        .values = std.ArrayList([]const u8).init(allocator),
+        .values = std.array_list.Managed([]const u8).init(allocator),
         .allocator = allocator,
         .num_specs = specs.len,
     };
@@ -2506,7 +2520,7 @@ pub fn mutateIn(client: *Client, allocator: std.mem.Allocator, key: []const u8, 
     }
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSUBDOC) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSUBDOC) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -2532,11 +2546,10 @@ pub fn mutateIn(client: *Client, allocator: std.mem.Allocator, key: []const u8, 
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_SDMUTATE, @ptrCast(&callback));
     
-    var rc = c.lcb_subdoc(client.instance, &ctx, cmd);
+    const rc = c.lcb_subdoc(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| {
         for (ctx.values.items) |val| {
@@ -2557,13 +2570,13 @@ pub fn mutateIn(client: *Client, allocator: std.mem.Allocator, key: []const u8, 
 pub fn mutateInWithCollection(client: *Client, allocator: std.mem.Allocator, key: []const u8, collection: types.Collection, specs: []const SubdocSpec, options: SubdocOptions) Error!SubdocResult {
     var ctx = struct {
         cas: u64 = 0,
-        values: std.ArrayList([]const u8),
+        values: std.array_list.Managed([]const u8),
         err: ?Error = null,
         done: bool = false,
         allocator: std.mem.Allocator,
         num_specs: usize,
     }{
-        .values = std.ArrayList([]const u8).init(allocator),
+        .values = std.array_list.Managed([]const u8).init(allocator),
         .allocator = allocator,
         .num_specs = specs.len,
     };
@@ -2615,7 +2628,7 @@ pub fn mutateInWithCollection(client: *Client, allocator: std.mem.Allocator, key
     }
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSUBDOC) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSUBDOC) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -2641,11 +2654,10 @@ pub fn mutateInWithCollection(client: *Client, allocator: std.mem.Allocator, key
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_SDMUTATE, @ptrCast(&callback));
     
-    var rc = c.lcb_subdoc(client.instance, &ctx, cmd);
+    const rc = c.lcb_subdoc(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| {
         for (ctx.values.items) |val| {
@@ -2771,7 +2783,7 @@ pub fn storeWithDurability(client: *Client, key: []const u8, value: []const u8, 
     }
     
     const callback = struct {
-        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSTORE) callconv(.C) void {
+        fn cb(instance: ?*c.lcb_INSTANCE, cbtype: c.lcb_CALLBACK_TYPE, resp: ?*const c.lcb_RESPSTORE) callconv(.c) void {
             _ = instance;
             _ = cbtype;
             
@@ -2809,11 +2821,10 @@ pub fn storeWithDurability(client: *Client, key: []const u8, value: []const u8, 
     
     _ = c.lcb_install_callback(client.instance, c.LCB_CALLBACK_STORE, @ptrCast(&callback));
     
-    var rc = c.lcb_store(client.instance, &ctx, cmd);
+    const rc = c.lcb_store(client.instance, &ctx, cmd);
     try fromStatusCode(rc);
     
-    rc = c.lcb_wait(client.instance, 0);
-    try fromStatusCode(rc);
+    try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| {
         return err;
@@ -3004,7 +3015,7 @@ pub fn getCollectionManifest(client: *Client, allocator: std.mem.Allocator) Erro
     _ = client; // Suppress unused variable warning in stub implementation
     
     // Create an empty manifest as libcouchbase doesn't expose collection manifest directly
-    var collections = std.ArrayList(types.CollectionManifestEntry).init(allocator);
+    var collections = std.array_list.Managed(types.CollectionManifestEntry).init(allocator);
     
     const manifest = types.CollectionManifest{
         .uid = 0,

@@ -228,7 +228,7 @@ test "LogEntry formatting" {
     try log_entry.addMetadata("key2", "value2");
 
     // Test formatting
-    var buffer = std.ArrayList(u8).init(allocator);
+    var buffer = std.array_list.Managed(u8).init(allocator);
     defer buffer.deinit();
     try log_entry.format("", .{}, buffer.writer());
     
