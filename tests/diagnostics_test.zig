@@ -1,24 +1,12 @@
 const std = @import("std");
 const couchbase = @import("couchbase");
 
-const TestConfig = couchbase.TestConfig;
-
 test "ping operation" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const config = TestConfig{
-        .connection_string = std.process.getEnvVarOwned(allocator, "COUCHBASE_HOST") catch "couchbase://127.0.0.1",
-        .username = std.process.getEnvVarOwned(allocator, "COUCHBASE_USER") catch "tester",
-        .password = std.process.getEnvVarOwned(allocator, "COUCHBASE_PASSWORD") catch "csfb2010",
-        .bucket = std.process.getEnvVarOwned(allocator, "COUCHBASE_BUCKET") catch "default",
-        .timeout_ms = 30000,
-    };
-    defer allocator.free(config.connection_string);
-    defer allocator.free(config.username);
-    defer allocator.free(config.password);
-    defer allocator.free(config.bucket);
+    const config = couchbase.getTestConfig();
 
     var client = couchbase.Client.connect(allocator, .{
         .connection_string = config.connection_string,
@@ -51,17 +39,7 @@ test "diagnostics operation" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const config = TestConfig{
-        .connection_string = std.process.getEnvVarOwned(allocator, "COUCHBASE_HOST") catch "couchbase://127.0.0.1",
-        .username = std.process.getEnvVarOwned(allocator, "COUCHBASE_USER") catch "tester",
-        .password = std.process.getEnvVarOwned(allocator, "COUCHBASE_PASSWORD") catch "csfb2010",
-        .bucket = std.process.getEnvVarOwned(allocator, "COUCHBASE_BUCKET") catch "default",
-        .timeout_ms = 30000,
-    };
-    defer allocator.free(config.connection_string);
-    defer allocator.free(config.username);
-    defer allocator.free(config.password);
-    defer allocator.free(config.bucket);
+    const config = couchbase.getTestConfig();
 
     var client = couchbase.Client.connect(allocator, .{
         .connection_string = config.connection_string,
@@ -94,17 +72,7 @@ test "cluster configuration" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const config = TestConfig{
-        .connection_string = std.process.getEnvVarOwned(allocator, "COUCHBASE_HOST") catch "couchbase://127.0.0.1",
-        .username = std.process.getEnvVarOwned(allocator, "COUCHBASE_USER") catch "tester",
-        .password = std.process.getEnvVarOwned(allocator, "COUCHBASE_PASSWORD") catch "csfb2010",
-        .bucket = std.process.getEnvVarOwned(allocator, "COUCHBASE_BUCKET") catch "default",
-        .timeout_ms = 30000,
-    };
-    defer allocator.free(config.connection_string);
-    defer allocator.free(config.username);
-    defer allocator.free(config.password);
-    defer allocator.free(config.bucket);
+    const config = couchbase.getTestConfig();
 
     var client = couchbase.Client.connect(allocator, .{
         .connection_string = config.connection_string,
@@ -135,17 +103,7 @@ test "SDK metrics" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const config = TestConfig{
-        .connection_string = std.process.getEnvVarOwned(allocator, "COUCHBASE_HOST") catch "couchbase://127.0.0.1",
-        .username = std.process.getEnvVarOwned(allocator, "COUCHBASE_USER") catch "tester",
-        .password = std.process.getEnvVarOwned(allocator, "COUCHBASE_PASSWORD") catch "csfb2010",
-        .bucket = std.process.getEnvVarOwned(allocator, "COUCHBASE_BUCKET") catch "default",
-        .timeout_ms = 30000,
-    };
-    defer allocator.free(config.connection_string);
-    defer allocator.free(config.username);
-    defer allocator.free(config.password);
-    defer allocator.free(config.bucket);
+    const config = couchbase.getTestConfig();
 
     var client = couchbase.Client.connect(allocator, .{
         .connection_string = config.connection_string,
@@ -184,17 +142,7 @@ test "HTTP tracing" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const config = TestConfig{
-        .connection_string = std.process.getEnvVarOwned(allocator, "COUCHBASE_HOST") catch "couchbase://127.0.0.1",
-        .username = std.process.getEnvVarOwned(allocator, "COUCHBASE_USER") catch "tester",
-        .password = std.process.getEnvVarOwned(allocator, "COUCHBASE_PASSWORD") catch "csfb2010",
-        .bucket = std.process.getEnvVarOwned(allocator, "COUCHBASE_BUCKET") catch "default",
-        .timeout_ms = 30000,
-    };
-    defer allocator.free(config.connection_string);
-    defer allocator.free(config.username);
-    defer allocator.free(config.password);
-    defer allocator.free(config.bucket);
+    const config = couchbase.getTestConfig();
 
     var client = couchbase.Client.connect(allocator, .{
         .connection_string = config.connection_string,
