@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  couchbase1:
+    image: couchbase/server:7.2.0
+    container_name: couchbase-node1
+    hostname: couchbase1
+    ports:
+      - "8091:8091"  # Web UI
+      - "8092:8092"  # CAPI
+      - "8093:8093"  # Query
+      - "8094:8094"  # FTS
+      - "8095:8095"  # Eventing
+      - "8096:8096"  # Analytics
+      - "11210:11210"  # KV
+      - "11207:11207"  # KV SSL
+    environment:
+      - COUCHBASE_ADMINISTRATOR_USERNAME=admin
+      - COUCHBASE_ADMINISTRATOR_PASSWORD=csfb2010
+    volumes:
+      - couchbase1-data:/opt/couchbase/var
+    networks:
+      - couchbase-cluster
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/ui/index.html"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  couchbase2:
+    image: couchbase/server:7.2.0
+    container_name: couchbase-node2
+    hostname: couchbase2.couchbase-cluster
+    ports:
+      - "8097:8091"  # Web UI
+      - "8098:8092"  # CAPI
+      - "8099:8093"  # Query
+      - "8100:8094"  # FTS
+      - "8101:8095"  # Eventing
+      - "8102:8096"  # Analytics
+      - "11211:11210"  # KV
+      - "11208:11207"  # KV SSL
+    environment:
+      - COUCHBASE_ADMINISTRATOR_USERNAME=admin
+      - COUCHBASE_ADMINISTRATOR_PASSWORD=csfb2010
+    volumes:
+      - couchbase2-data:/opt/couchbase/var
+    networks:
+      - couchbase-cluster
+    depends_on:
+      couchbase1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/ui/index.html"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  couchbase3:
+    image: couchbase/server:7.2.0
+    container_name: couchbase-node3
+    hostname: couchbase3.couchbase-cluster
+    ports:
+      - "8103:8091"  # Web UI
+      - "8104:8092"  # CAPI
+      - "8105:8093"  # Query
+      - "8106:8094"  # FTS
+      - "8107:8095"  # Eventing
+      - "8108:8096"  # Analytics
+      - "11212:11210"  # KV
+      - "11209:11207"  # KV SSL
+    environment:
+      - COUCHBASE_ADMINISTRATOR_USERNAME=admin
+      - COUCHBASE_ADMINISTRATOR_PASSWORD=csfb2010
+    volumes:
+      - couchbase3-data:/opt/couchbase/var
+    networks:
+      - couchbase-cluster
+    depends_on:
+      couchbase1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/ui/index.html"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  cluster-init:
+    image: curlimages/curl:latest
+    container_name: couchbase-cluster-init
+    hostname: cluster-init
+    environment:
+      - COUCHBASE_USER=${COUCHBASE_USER:-admin}
+      - COUCHBASE_PASSWORD=${COUCHBASE_PASSWORD:-csfb2010}
+      - COUCHBASE_BUCKET=${COUCHBASE_BUCKET:-test}
+    volumes:
+      - ./init-cluster.sh:/init-cluster.sh:ro
+    networks:
+      - couchbase-cluster
+    depends_on:
+      couchbase1:
+        condition: service_healthy
+      couchbase2:
+        condition: service_healthy
+      couchbase3:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/init-cluster.sh"]
+    restart: "no"
+
+volumes:
+  couchbase1-data:
+  couchbase2-data:
+  couchbase3-data:
+
+networks:
+  couchbase-cluster:
+    driver: bridge

@@ -1244,13 +1244,12 @@ pub fn store(client: *Client, key: []const u8, value: []const u8, operation: typ
         _ = c.lcb_cmdstore_flags(cmd, options.flags);
     }
     
+    // Set operation timeout (convert ms to microseconds)
+    _ = c.lcb_cmdstore_timeout(cmd, lcbTimeoutUs(options.timeout_ms));
+    
     if (options.durability.level != .none) {
         _ = c.lcb_cmdstore_durability(cmd, @intFromEnum(options.durability.level));
-    }
-    
-    // Add observe-based durability if needed
-    if (options.durability.timeout_ms > 0) {
-        _ = c.lcb_cmdstore_durability_observe(cmd, 1, 0); // persist_to=1, replicate_to=0
+        // Don't use lcb_cmdstore_durability_observe as it conflicts with lcb_cmdstore_durability
     }
     
     const callback = struct {
@@ -1263,8 +1262,14 @@ pub fn store(client: *Client, key: []const u8, value: []const u8, operation: typ
             var context: *MutationContext = @ptrCast(@alignCast(cookie));
             
             const rc = c.lcb_respstore_status(resp);
+            context.last_rc = rc;
             if (rc != c.LCB_SUCCESS) {
-                fromStatusCode(rc) catch |err| { context.err = err; };
+                fromStatusCode(rc) catch |err| { 
+                    context.err = err;
+                    // Log the error for debugging
+                    const msg = std.mem.span(c.lcb_strerror_short(rc));
+                    std.debug.print("store callback failed: rc={d} msg={s}\n", .{ @as(i32, @intCast(rc)), msg });
+                };
                 context.done = true;
                 return;
             }
@@ -2761,6 +2766,9 @@ pub fn storeWithDurability(client: *Client, key: []const u8, value: []const u8, 
     _ = c.lcb_cmdstore_key(cmd, key.ptr, key.len);
     _ = c.lcb_cmdstore_value(cmd, value.ptr, value.len);
     
+    // Set operation timeout (convert ms to microseconds)
+    _ = c.lcb_cmdstore_timeout(cmd, lcbTimeoutUs(options.timeout_ms));
+    
     if (options.cas > 0) {
         _ = c.lcb_cmdstore_cas(cmd, options.cas);
     }
@@ -2773,13 +2781,11 @@ pub fn storeWithDurability(client: *Client, key: []const u8, value: []const u8, 
         _ = c.lcb_cmdstore_flags(cmd, options.flags);
     }
     
+    // Set durability level - this handles replication internally
+    // Don't use lcb_cmdstore_durability_observe as it conflicts with lcb_cmdstore_durability
+    // Note: Durability timeout is handled by the operation timeout set above
     if (options.durability.level != .none) {
         _ = c.lcb_cmdstore_durability(cmd, @intFromEnum(options.durability.level));
-    }
-    
-    // Add observe-based durability if needed
-    if (options.durability.timeout_ms > 0) {
-        _ = c.lcb_cmdstore_durability_observe(cmd, 1, 0); // persist_to=1, replicate_to=0
     }
     
     const callback = struct {
@@ -2792,8 +2798,14 @@ pub fn storeWithDurability(client: *Client, key: []const u8, value: []const u8, 
             var context: *MutationContext = @ptrCast(@alignCast(cookie));
             
             const rc = c.lcb_respstore_status(resp);
+            context.last_rc = rc;
             if (rc != c.LCB_SUCCESS) {
-                fromStatusCode(rc) catch |err| { context.err = err; };
+                fromStatusCode(rc) catch |err| { 
+                    context.err = err;
+                    // Log the error for debugging
+                    const msg = std.mem.span(c.lcb_strerror_short(rc));
+                    std.debug.print("storeWithDurability callback failed: rc={d} msg={s}\n", .{ @as(i32, @intCast(rc)), msg });
+                };
                 context.done = true;
                 return;
             }
@@ -2827,6 +2839,10 @@ pub fn storeWithDurability(client: *Client, key: []const u8, value: []const u8, 
     try waitForCompletion(client.instance, &ctx, 75000); // Default 75s timeout
     
     if (ctx.err) |err| {
+        if (ctx.last_rc) |lrc| {
+            const msg = std.mem.span(c.lcb_strerror_short(lrc));
+            std.debug.print("storeWithDurability error: rc={d} msg={s} err={}\n", .{ @as(i32, @intCast(lrc)), msg, err });
+        }
         return err;
     }
     

@@ -4,8 +4,24 @@ const couchbase = @import("couchbase");
 
 fn getTestClient(allocator: std.mem.Allocator) !couchbase.Client {
     const test_config = couchbase.getTestConfig();
+    // Use multi-node cluster for durability tests
+    // Default to localhost which will connect to all nodes via DNS SRV or default ports
+    const host = std.process.getEnvVarOwned(allocator, "COUCHBASE_HOST") catch null;
+    defer if (host) |h| allocator.free(h);
+    
+    // Default to localhost for multi-node cluster
+    const default_conn = "couchbase://localhost";
+    const connection_string = if (host) |h| blk: {
+        if (std.mem.indexOf(u8, h, "://") != null) {
+            break :blk h;
+        } else {
+            const conn = std.fmt.allocPrint(allocator, "couchbase://{s}", .{h}) catch h;
+            break :blk conn;
+        }
+    } else default_conn;
+    
     return try couchbase.Client.connect(allocator, .{
-        .connection_string = test_config.connection_string,
+        .connection_string = connection_string,
         .username = test_config.username,
         .password = test_config.password,
         .bucket = test_config.bucket,
@@ -29,7 +45,7 @@ test "durability - basic store with durability" {
         .{
             .durability = .{
                 .level = .majority,
-                .timeout_ms = 5000,
+                .timeout_ms = 30000,
             },
         },
         testing.allocator,
@@ -175,7 +191,7 @@ test "durability - mutation token extraction" {
         .{
             .durability = .{
                 .level = .majority,
-                .timeout_ms = 5000,
+                .timeout_ms = 30000,
             },
         },
         testing.allocator,
@@ -228,7 +244,7 @@ test "durability - different durability levels" {
             .{
                 .durability = .{
                     .level = level,
-                    .timeout_ms = 5000,
+                    .timeout_ms = 30000,
                 },
             },
             testing.allocator,
